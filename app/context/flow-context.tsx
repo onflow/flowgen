@@ -13,12 +13,13 @@ export function FlowContextProvider({ children }: FlowContextProviderProps) {
 	return (
 		<FlowProvider
 			config={{
-				accessNodeUrl: "https://rest-testnet.onflow.org",
-				flowNetwork: "testnet",
+				accessNodeUrl: "http://localhost:8888",
+				flowNetwork: "emulator",
 				appDetailTitle: "FlowGen",
 				appDetailIcon: "https://flowgen.me/logo.png",
 				appDetailUrl: "https://flowgen.me",
 				appDetailDescription: "AI-generated pixel art on the Flow blockchain",
+				discoveryWallet: "https://fcl-discovery.onflow.org/emulator/authn",
 			}}
 			flowJson={flowJson}
 		>

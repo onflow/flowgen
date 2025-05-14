@@ -48,18 +48,21 @@ flow test cadence/tests/Counter_test.cdc
 The application consists of two main parts:
 
 1. **Next.js Frontend**
+
    - React-based user interface
    - Currently using standard Next.js structure with app router
    - Uses Tailwind CSS for styling
 
 2. **Flow Blockchain Backend**
    - Smart contracts written in Cadence (Flow's programming language)
+   - Use Cadence 1.0. See https://cadence-lang.org/docs/cadence-migration-guide/improvements
    - Currently includes a basic Counter contract for demonstration
    - Configuration in flow.json for multiple networks (emulator, testnet, mainnet)
 
 ### Flow Integration
 
 The Flow blockchain integration uses:
+
 - `@onflow/kit` for React components and hooks
 - Cadence contracts, transactions, and scripts
 
@@ -94,3 +97,4 @@ flowgen/
 - Flow emulator requires the emulator-account.pkey file for authentication
 - The Counter contract serves as a basic example but will be extended for NFT functionality
 - Refer to the project plan in docs/project-plan.md for the planned implementation
+- Use kebab case for file naming

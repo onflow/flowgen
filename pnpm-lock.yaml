@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@onflow/fcl':
+        specifier: ^1.17.0
+        version: 1.17.0(@types/react@19.1.4)(google-protobuf@3.21.4)(jiti@2.4.2)(postcss@8.5.3)(react@19.1.0)(typescript@5.8.3)
       '@onflow/kit':
         specifier: ^0.1.0
         version: 0.1.0(@onflow/fcl@1.17.0(@types/react@19.1.4)(google-protobuf@3.21.4)(jiti@2.4.2)(postcss@8.5.3)(react@19.1.0)(typescript@5.8.3))(@testing-library/dom@10.4.0)(@types/react-dom@19.1.5(@types/react@19.1.4))(@types/react@19.1.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)

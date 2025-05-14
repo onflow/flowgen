@@ -1,23 +1,24 @@
 {
 	"contracts": {
-		"FlowGenCanvas": {
-			"source": "cadence/contracts/FlowGenCanvas.cdc",
-			"aliases": {
-				"testing": "0000000000000007"
-			}
-		},
 		"Counter": {
 			"source": "cadence/contracts/Counter.cdc",
 			"aliases": {
 				"testing": "0000000000000007"
 			}
 		},
-		"FooBar": {
-			"source": "cadence/contracts/FooBar.cdc",
+		"FlowGenCanvas": {
+			"source": "cadence/contracts/FlowGenCanvas.cdc",
 			"aliases": {
 				"testing": "0000000000000007"
 			}
-		}
+		},
+		"FlowGenPixel": {
+			"source": "cadence/contracts/FlowGenPixel.cdc",
+			"aliases": {
+				"testing": "0000000000000007"
+			}
+		},
+		"FooBar": "cadence/contracts/FooBar.cdc"
 	},
 	"dependencies": {
 		"Burner": {
@@ -79,6 +80,17 @@
 				"type": "file",
 				"location": "emulator-account.pkey"
 			}
+		},
+		"test-acct": {
+			"address": "179b6b1cb6755e31",
+			"key": "2a63cdc1b5d10ab68cc4132201d8fbf20c300615f69a3c83ae4a9f28855d34b2"
+		}
+	},
+	"deployments": {
+		"emulator": {
+			"emulator-account": [
+				"FooBar"
+			]
 		}
 	}
 }

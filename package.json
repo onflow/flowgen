@@ -9,6 +9,7 @@
 		"lint": "next lint"
 	},
 	"dependencies": {
+		"@onflow/fcl": "^1.17.0",
 		"@onflow/kit": "^0.1.0",
 		"next": "15.3.2",
 		"react": "^19.1.0",

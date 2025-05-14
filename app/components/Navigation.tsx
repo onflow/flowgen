@@ -8,10 +8,10 @@ export default function Navigation() {
                     Flowgen
                 </Link>
                 <Link
-                    href="/login"
+                    href="/start"
                     className="rounded-full px-4 py-2 bg-black text-white dark:bg-white dark:text-black hover:opacity-80 transition-opacity"
                 >
-                    Login
+                    Start
                 </Link>
             </div>
         </nav>

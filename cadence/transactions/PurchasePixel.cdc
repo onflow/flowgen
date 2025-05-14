@@ -1,87 +1,91 @@
-import FlowGenCanvas from "FlowGenCanvas"
-import NonFungibleToken from "NonFungibleToken"
 import FungibleToken from "FungibleToken"
+import NonFungibleToken from "NonFungibleToken"
+import FlowGenPixel from "FlowGenPixel"
+import FlowGenCanvas from "FlowGenCanvas"
 
 transaction(
-  x: UInt16,
-  y: UInt16,
-  prompt: String,
-  style: String,
-  imageURL: String,
-  paymentAmount: UFix64
+    // Pixel Coordinates
+    x: UInt16,
+    y: UInt16,
+    // NFT Metadata
+    name: String,
+    description: String,
+    thumbnailURL: String,
+    aiPrompt: String,
+    imageURI: String,
+    pixelArtURI: String,
+    imageHash: String,
+    // Payment & Royalty
+    paymentAmount: UFix64,
+    creatorAddress: Address,
+    royaltyRate: UFix64,
+    // Addresses
+    pixelContractAdminAddress: Address,
+    feeReceiverAddress: Address
 ) {
-  // Local variables
-  let paymentVault: @FungibleToken.Vault
-  let receiver: &{FungibleToken.Receiver}
-  let collectionRef: &{NonFungibleToken.CollectionPublic}
-  let adminRef: &FlowGenCanvas.Admin
-  
-  prepare(acct: AuthAccount) {
-    // Ensure the account has a FlowGenCanvas collection
-    if acct.borrow<&FlowGenCanvas.Collection>(from: FlowGenCanvas.CollectionStoragePath) == nil {
-      // Create a new empty collection
-      acct.save(<-FlowGenCanvas.createEmptyCollection(), to: FlowGenCanvas.CollectionStoragePath)
-      
-      // Create a public capability for the collection
-      acct.link<&{NonFungibleToken.CollectionPublic, FlowGenCanvas.FlowGenCanvasCollectionPublic, MetadataViews.ResolverCollection}>(
-        FlowGenCanvas.CollectionPublicPath,
-        target: FlowGenCanvas.CollectionStoragePath
-      )
-    }
-    
-    // Get the payment vault
-    let mainVault = acct.borrow<&FungibleToken.Vault>(from: /storage/flowTokenVault)
-        ?? panic("Cannot borrow Flow token vault from storage")
+    let paymentVault: @{FungibleToken.Vault}
+    let buyerPixelCollectionCapOpt: Capability<&{NonFungibleToken.Receiver}>?
+    let feeReceiverCapOpt: Capability<&{FungibleToken.Receiver}>?
+    let nftMinterRef: &FlowGenPixel.NFTMinter
+
+    prepare(buyerAcct: auth(BorrowValue, IssueStorageCapabilityController, PublishCapability, SaveValue, UnpublishCapability, Storage) &Account) {
+        if buyerAcct.storage.borrow<&FlowGenPixel.Collection>(from: FlowGenPixel.CollectionStoragePath) == nil {
+            panic("Buyer does not have a FlowGenPixel Collection. Please run setup transaction first.")
+        }
+        self.buyerPixelCollectionCapOpt = buyerAcct.capabilities.get<&{NonFungibleToken.Receiver}>(
+                FlowGenPixel.CollectionPublicPath
+            )
+
+        let mainFlowVault = buyerAcct.storage.borrow<auth(FungibleToken.Withdraw) &{FungibleToken.Vault}>(from: /storage/flowTokenVault)
+            ?? panic("Cannot borrow Flow Token vault from buyer's account. Vault might not exist or path is incorrect.")
+        self.paymentVault <- mainFlowVault.withdraw(amount: paymentAmount)
+
+        let feeReceiverAccount = getAccount(feeReceiverAddress)
+        self.feeReceiverCapOpt = feeReceiverAccount.capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
         
-    // Withdraw the payment amount
-    self.paymentVault <- mainVault.withdraw(amount: paymentAmount)
-    
-    // Get the admin reference
-    self.adminRef = getAccount(0x01) // Replace with the contract admin address
-      .getCapability(/private/FlowGenCanvasAdmin)
-      .borrow<&FlowGenCanvas.Admin>()
-      ?? panic("Cannot borrow admin reference")
-    
-    // Get the admin's vault receiver
-    self.receiver = getAccount(0x01) // Replace with the contract admin address
-      .getCapability(/public/flowTokenReceiver)
-      .borrow<&{FungibleToken.Receiver}>()
-      ?? panic("Cannot borrow receiver reference")
-    
-    // Get the collection reference
-    self.collectionRef = acct
-      .getCapability(FlowGenCanvas.CollectionPublicPath)
-      .borrow<&{NonFungibleToken.CollectionPublic}>()
-      ?? panic("Cannot borrow collection reference")
-  }
-  
-  execute {
-    // Validate the payment amount matches the current price
-    let currentPrice = FlowGenCanvas.getCurrentPrice()
-    assert(
-      paymentAmount >= currentPrice,
-      message: "Payment amount must be at least the current price: ".concat(currentPrice.toString())
-    )
-    
-    // Validate the pixel is available
-    assert(
-      FlowGenCanvas.isPixelAvailable(x: x, y: y),
-      message: "Pixel at (".concat(x.toString()).concat(",").concat(y.toString()).concat(") is not available")
-    )
-    
-    // Deposit payment
-    self.receiver.deposit(from: <-self.paymentVault)
-    
-    // Mint the NFT
-    self.adminRef.mintNFT(
-      recipient: self.collectionRef,
-      x: x,
-      y: y,
-      width: 1, // Single pixel for now
-      height: 1, // Single pixel for now
-      imageURL: imageURL,
-      prompt: prompt,
-      style: style
-    )
-  }
+        self.nftMinterRef = buyerAcct.storage.borrow<&FlowGenPixel.NFTMinter>(from: FlowGenPixel.MinterStoragePath)
+            ?? panic("Could not borrow NFTMinter reference. Signer might not be admin or Minter not at path.")
+    }
+
+    execute {
+        let buyerPixelCollectionCap = self.buyerPixelCollectionCapOpt ?? panic("Buyer's FlowGenPixel Collection receiver capability not found.")
+        if !buyerPixelCollectionCap.check() {
+             panic("Buyer's FlowGenPixel Collection receiver capability is not valid.")
+        }
+
+        let feeReceiverCap = self.feeReceiverCapOpt ?? panic("Fee receiver capability not found.")
+        if !feeReceiverCap.check(){
+            panic("Fee receiver capability is not valid.")
+        }
+
+        let expectedPrice = FlowGenCanvas.getCurrentPrice()
+        if paymentAmount != expectedPrice { 
+            panic("Payment amount (".concat(paymentAmount.toString()).concat(") does not match the current price (").concat(expectedPrice.toString()).concat(")."))
+        }
+
+        if FlowGenCanvas.isPixelTaken(x: x, y: y) {
+            panic("Pixel at coordinates (".concat(x.toString()).concat(", ").concat(y.toString()).concat(") is already taken."))
+        }
+
+        let feeReceiver = feeReceiverCap.borrow()
+            ?? panic("Could not borrow fee receiver capability.")
+        feeReceiver.deposit(from: <-self.paymentVault)
+        log("Payment deposited to fee receiver.")
+
+        self.nftMinterRef.mintPixelNFT(
+            recipientCap: buyerPixelCollectionCap,
+            name: name,
+            description: description,
+            thumbnailURL: thumbnailURL,
+            aiPrompt: aiPrompt,
+            imageURI: imageURI,
+            pixelArtURI: pixelArtURI,
+            imageHash: imageHash,
+            x: x,
+            y: y,
+            creatorAddress: creatorAddress,
+            royaltyRate: royaltyRate
+        )
+        log("FlowGenPixel NFT minted and deposited to buyer's collection.")
+    }
 }

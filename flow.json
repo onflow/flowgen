@@ -1,11 +1,5 @@
 {
 	"contracts": {
-		"Counter": {
-			"source": "cadence/contracts/Counter.cdc",
-			"aliases": {
-				"testing": "0000000000000007"
-			}
-		},
 		"FlowGenCanvas": {
 			"source": "cadence/contracts/FlowGenCanvas.cdc",
 			"aliases": {
@@ -88,9 +82,7 @@
 	},
 	"deployments": {
 		"emulator": {
-			"emulator-account": [
-				"FooBar"
-			]
+			"emulator-account": ["FooBar"]
 		}
 	}
 }

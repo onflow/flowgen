@@ -267,4 +267,16 @@ access(all) contract FlowGenPixel: NonFungibleToken {
 
         emit ContractInitialized()
     }
+
+    // Public function to check if a pixel key (coordinate) has been minted
+    access(all) view fun isPixelMinted(x: UInt16, y: UInt16): Bool {
+        let pixelKeyStr = x.toString().concat(",").concat(y.toString())
+        return self.registeredPixelKeys[pixelKeyStr] != nil
+    }
+
+    // Public function to get the NFT ID for a given pixel key (coordinate)
+    access(all) view fun getPixelNFTID(x: UInt16, y: UInt16): UInt64? {
+        let pixelKeyStr = x.toString().concat(",").concat(y.toString())
+        return self.registeredPixelKeys[pixelKeyStr]
+    }
 }

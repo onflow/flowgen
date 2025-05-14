@@ -1,35 +1,40 @@
 import FlowGenCanvas from "FlowGenCanvas"
+import FlowGenPixel from "FlowGenPixel" // Needed if we want to provide more direct NFT info later
 
 // Returns information about a specific pixel on the canvas
-pub fun main(x: UInt16, y: UInt16): {String: AnyStruct} {
-  // Check if the coordinates are valid
-  if x >= FlowGenCanvas.canvasWidth || y >= FlowGenCanvas.canvasHeight {
+access(all) fun main(x: UInt16, y: UInt16): {String: AnyStruct} {
+  let canvasWidth: UInt16 = FlowGenCanvas.canvasWidth
+  let canvasHeight: UInt16 = FlowGenCanvas.canvasHeight
+
+  if x >= canvasWidth || y >= canvasHeight {
     return {
-      "error": "Coordinates out of bounds",
-      "available": false,
-      "valid": false
+      "x": x,
+      "y": y,
+      "isValidCoordinate": false,
+      "error": "Coordinates out of bounds"
     }
   }
-  
-  // Check if the pixel is available
-  let isAvailable = FlowGenCanvas.isPixelAvailable(x: x, y: y)
-  
-  // If available, return the current price
-  if isAvailable {
-    return {
-      "available": true,
-      "valid": true,
-      "currentPrice": FlowGenCanvas.getCurrentPrice()
-    }
+
+  let isTaken: Bool = FlowGenCanvas.isPixelTaken(x: x, y: y)
+  let nftID: UInt64? = FlowGenCanvas.getNFTIDForPixel(x: x, y: y)
+
+  var result: {String: AnyStruct} = {
+    "x": x,
+    "y": y,
+    "isValidCoordinate": true,
+    "isTaken": isTaken,
+    "nftID": nftID // This is UInt64?
   }
-  
-  // If not available, try to find ownership information
-  // Note: This is a simplified implementation that would need to be expanded
-  // to actually look up the owner based on the pixel coordinates
-  
-  return {
-    "available": false,
-    "valid": true,
-    "message": "This pixel has already been purchased"
+
+  if !isTaken {
+    result["currentPriceForNewPixel"] = FlowGenCanvas.getCurrentPrice()
+  } else if nftID != nil {
+    // If taken and we have an ID, we could potentially add more info
+    // by trying to borrow the NFT if we knew its owner.
+    // This is complex for a single script without owner info.
+    // For now, just providing the ID is sufficient from FlowGenCanvas.
+    // A different script could take nftID and owner address for full details.
   }
+
+  return result
 }

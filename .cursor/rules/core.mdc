@@ -1,0 +1,37 @@
+---
+description: 
+globs: *.cdc
+alwaysApply: false
+---
+**1. Core Technologies & Standards:**
+    *   **Blockchain:** All smart contract development will target the Flow blockchain.
+    *   **Smart Contract Language:** All smart contracts will be written in Cadence 1.0. Ensure all new and existing code (contracts, transactions, scripts) is compatible with Cadence 1.0 and its features.
+    *   **Token Standards:**
+        *   NFTs (e.g., `FlowGenPixel`) must comply with the latest Flow NFT Standard (currently NFT Standard v2), including proper implementation of metadata views.
+        *   Fungible Tokens (if any) must comply with the latest Flow FT Standard (currently FT Standard v2).
+    *   **Project Focus:** Key contracts include the `FlowGenPixel` NFT contract (managing pixel ownership, uniqueness, and metadata) and a corresponding Marketplace contract for trading these NFTs. Royalty structures should be considered and implemented as per project requirements.
+
+**2. Development Practices & Tooling:**
+    *   **Flow CLI:** Utilize the Flow CLI for contract deployment, transaction submission, and script execution.
+    *   **Package Management:** Use `pnpm` for any Node.js package management tasks.
+    *   **Code Verification:** Always verify AI-generated or suggested code snippets for correctness, security, and adherence to Flow/Cadence best practices before deployment.
+    *   **Linting & Error Resolution:** Address linter errors and compilation issues promptly. Pay attention to common Cadence 1.0 pitfalls like type casting and function definition changes.
+    *   **File Naming:** Avoid generic `index` files for modules or collections of utilities/services. Use descriptive names that reflect the content or purpose of the file.
+
+**3. Collaboration & Communication (with AI Assistant):**
+    *   **Specify Context:** When asking for assistance:
+        *   Use `@Flow` for questions related to Flow blockchain concepts, its ecosystem, or tooling.
+        *   Use `@Cadence` for questions about Cadence language syntax, features, or programming patterns.
+        *   Use `@Flow Data Sources` for complex queries or when initial responses are insufficient.
+    *   **Be Specific:** Provide clear and detailed prompts to ensure accurate and relevant assistance.
+    *   **Iterative Development:** Expect an iterative process, especially for complex contract logic or when debugging.
+
+**4. Documentation & Learning:**
+    *   Refer to the official Flow and Cadence documentation as the primary source of truth.
+    *   Stay updated on Cadence 1.0 migration guides and feature sets.
+
+**5. Key Project-Specific Considerations:**
+    *   **Pixel Uniqueness:** Ensure mechanisms are in place within the `FlowGenPixel` contract to guarantee the uniqueness of each pixel.
+    *   **Metadata:** Leverage Cadence's on-chain metadata capabilities for NFTs, particularly for views required by the Flow NFT Catalog.
+    *   **Marketplace Logic:** The marketplace contract should handle listing, bidding, purchasing, and royalty distribution for `FlowGenPixel` NFTs.
+

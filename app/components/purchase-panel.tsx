@@ -24,6 +24,7 @@ type PurchasePanelProps = {
 		owner: string | null;
 		image: string | null;
 	}) => void;
+	onPurchaseSuccess: () => void;
 };
 
 export default function PurchasePanel({
@@ -31,6 +32,7 @@ export default function PurchasePanel({
 	currentPrice,
 	onCancel,
 	onPixelPurchased,
+	onPurchaseSuccess,
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
 	const [style, setStyle] = useState("Photorealistic");
@@ -178,7 +180,7 @@ export default function PurchasePanel({
 					"Pixel space acquired successfully. Pixel ID:",
 					result.pixelId
 				);
-				onCancel();
+				onPurchaseSuccess();
 			} else {
 				console.error("Failed to acquire pixel space:", result.error);
 			}

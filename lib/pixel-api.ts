@@ -16,6 +16,12 @@ import {
 	unlistPixelFromMarketServerAction,
 	getActiveMarketListingsServerAction,
 } from "../app/actions/canvas-actions";
+import {
+	PixelData,
+	PixelSpaceResult,
+	PixelMarketResult,
+	PixelMarketListing,
+} from "./pixel-types";
 
 // Re-export PixelData if needed by the client, or define a similar client-side type
 // For now, we assume the return types from server actions are directly usable or
@@ -56,7 +62,7 @@ export async function acquirePixelSpace(
 	imageURL: string,
 	paymentAmount: number,
 	userId: string
-): Promise<{ success: boolean; pixelId?: string; error?: string }> {
+): Promise<PixelSpaceResult> {
 	console.log(
 		`Calling server action: Acquire pixel space at (${x}, ${y}) by user ${userId}`
 	);
@@ -96,7 +102,10 @@ export async function getCanvasOverview(): Promise<{
  * @returns A promise that resolves with details about the pixel.
  *          The structure will match the PixelData interface from canvas-actions.ts.
  */
-export async function getPixelDetails(x: number, y: number): Promise<any> {
+export async function getPixelDetails(
+	x: number,
+	y: number
+): Promise<PixelData> {
 	// Consider defining a client-side PixelData type
 	console.log(`Calling server action: Get pixel details for (${x}, ${y})`);
 	return getPixelDetailsServerAction(x, y);
@@ -116,7 +125,7 @@ export async function listPixelOnMarket(
 	pixelId: string,
 	price: number,
 	sellerUserId: string
-): Promise<{ success: boolean; listingId?: string; error?: string }> {
+): Promise<PixelMarketResult> {
 	console.log(
 		`Calling server action: List pixel ${pixelId} on market by user ${sellerUserId} for price ${price}`
 	);
@@ -135,7 +144,7 @@ export async function listPixelOnMarket(
 export async function buyListedPixel(
 	listingId: string,
 	buyerUserId: string
-): Promise<{ success: boolean; transactionId?: string; error?: string }> {
+): Promise<PixelMarketResult> {
 	console.log(
 		`Calling server action: Buy listed pixel (listing ${listingId}) by user ${buyerUserId}`
 	);
@@ -154,7 +163,7 @@ export async function buyListedPixel(
 export async function unlistPixelFromMarket(
 	listingId: string,
 	ownerUserId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<PixelMarketResult> {
 	console.log(
 		`Calling server action: Unlist pixel (listing ${listingId}) from market by owner ${ownerUserId}`
 	);
@@ -168,7 +177,7 @@ export async function unlistPixelFromMarket(
  * @returns A promise that resolves with an array of active marketplace listings.
  *          Each item will match the PixelData interface from canvas-actions.ts.
  */
-export async function getActiveMarketListings(): Promise<any[]> {
+export async function getActiveMarketListings(): Promise<PixelData[]> {
 	// Consider defining a client-side PixelData type
 	console.log("Calling server action: Get active market listings");
 	return getActiveMarketListingsServerAction();
@@ -218,7 +227,7 @@ export async function getCanvasSectionData(data: {
 	startY: number;
 	width: number;
 	height: number;
-}): Promise<any[]> {
+}): Promise<PixelData[]> {
 	// Consider defining a client-side PixelData type
 	console.log(
 		`Calling server action: Get canvas section data for start: (${data.startX},${data.startY}), size: ${data.width}x${data.height}`
@@ -231,4 +240,3 @@ export async function getCanvasSectionData(data: {
 // (e.g., ClientPixelData, ClientListing) and map the server action responses to these types.
 // This can be useful if the server-side data structure (PixelData) contains fields that
 // the client doesn't need or if you want to transform the data for client-side use.
-// For now, using `any` or the direct server types for simplicity.

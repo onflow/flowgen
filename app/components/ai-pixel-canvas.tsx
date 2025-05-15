@@ -5,92 +5,95 @@ import Header from "./header";
 import PixelGrid from "./pixel-grid";
 import PurchasePanel from "./purchase-panel";
 import { useCurrentFlowUser } from "@onflow/kit";
+import { getPixels, getCurrentPrice, Pixel } from "../lib/canvas-db";
+
+type CanvasState = {
+	soldPercentage: number;
+	currentPrice: number;
+};
 
 export default function AIPixelCanvas() {
-	const [selectedSpace, setSelectedSpace] = useState<any>(null);
-	const [canvasState, setCanvasState] = useState<any>({
+	const [selectedSpace, setSelectedSpace] = useState<Pixel | null>(null);
+	const [canvasState, setCanvasState] = useState<CanvasState>({
 		soldPercentage: 0,
-		currentPrice: 10, // Default starting price
+		currentPrice: 10,
 	});
-	const [gridData, setGridData] = useState<any[]>([]);
+	const [gridData, setGridData] = useState<Pixel[]>([]);
 	const gridSize = 20;
 
-	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
+	const { user } = useCurrentFlowUser();
 
-	// Fetch canvas state from blockchain when authenticated
+	// Initialize grid data from database
 	useEffect(() => {
-		if (user.loggedIn) {
-			// This would be a real script execution in production
-			/*
-			const { data, isLoading } = executeScript(
-				`
-				import FlowGenCanvas from 0xFlowGenCanvas
+		async function loadCanvas() {
+			try {
+				let pixels = await fetch('/api/canvas').then(res => res.json());
+				let price = await fetch('/api/canvas/price').then(res => res.json());
 
-				pub fun main(): {String: AnyStruct} {
-					let totalPixels = FlowGenCanvas.totalPixels
-					let soldPixels = FlowGenCanvas.soldPixels
-					let soldPercentage = UFix64(soldPixels) / UFix64(totalPixels)
-					let currentPrice = FlowGenCanvas.getCurrentPrice()
+				// Create a full grid with empty pixels
+				const fullGrid = Array(gridSize * gridSize).fill(null).map((_, i) => ({
+					id: i,
+					x: i % gridSize,
+					y: Math.floor(i / gridSize),
+					owner: null as string | null,
+					image: null as string | null,
+					price: 10,
+					created_at: new Date()
+				}));
 
-					return {
-						"totalPixels": totalPixels,
-						"soldPixels": soldPixels,
-						"soldPercentage": soldPercentage,
-						"currentPrice": currentPrice,
-						"canvasWidth": FlowGenCanvas.canvasWidth,
-						"canvasHeight": FlowGenCanvas.canvasHeight
+				// Overlay stored pixels on the grid
+				if (pixels && pixels.length > 0) {
+					pixels.forEach((pixel: Pixel) => {
+						const index = pixel.y * gridSize + pixel.x;
+						if (index >= 0 && index < fullGrid.length) {
+							fullGrid[index] = pixel;
 						}
+					});
 				}
-				`
-			);
 
-			if (data && !isLoading) {
+				const soldPixels = fullGrid.filter((p: Pixel) => p.owner !== null).length;
+
+				setGridData(fullGrid);
 				setCanvasState({
-					soldPercentage: data.soldPercentage,
-					currentPrice: data.currentPrice,
-					// Other state properties
+					soldPercentage: soldPixels / (gridSize * gridSize),
+					currentPrice: price || 10
 				});
+			} catch (error) {
+				console.error("Failed to load canvas:", error);
 			}
-			*/
-
-			// Using mock data for demonstration
-			const mockSoldPercentage = Math.random() * 0.5; // 0-50% sold
-			const basePrice = 10;
-			const mockCurrentPrice = basePrice + basePrice * 9 * mockSoldPercentage;
-
-			setCanvasState({
-				soldPercentage: mockSoldPercentage,
-				currentPrice: mockCurrentPrice,
-			});
 		}
-	}, [user.loggedIn]);
-
-	// Initialize grid data once on component mount
-	useEffect(() => {
-		const initialGridData = Array(gridSize * gridSize)
-			.fill(null)
-			.map((_, i) => ({
-				id: i,
-				x: i % gridSize,
-				y: Math.floor(i / gridSize),
-				owner: Math.random() > 0.7 ? "Someone" : null,
-				image: Math.random() > 0.7 ? `https://picsum.photos/seed/${i}/50/50` : null,
-			}));
-		setGridData(initialGridData);
+		loadCanvas();
 	}, []);
 
-	// Update grid when pixel is purchased
-	const handlePixelPurchased = (newPixel: any) => {
-		setGridData(prevGrid =>
-			prevGrid.map(pixel =>
-				pixel.id === newPixel.id ? newPixel : pixel
-			)
-		);
-		setSelectedSpace(newPixel);
+	const handlePixelPurchased = async (newPixel: Pixel) => {
+		try {
+			const response = await fetch('/api/canvas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(newPixel)
+			});
+			console.log("response", response, newPixel);
+
+			if (response.ok) {
+				setGridData(prevGrid =>
+					prevGrid.map(pixel =>
+						pixel.id === newPixel.id ? newPixel : pixel
+					)
+				);
+				// Update canvas state
+				const price = await fetch('/api/canvas/price').then(res => res.json());
+				setCanvasState((prev: CanvasState) => ({
+					...prev,
+					soldPercentage: (gridData.length + 1) / (gridSize * gridSize),
+					currentPrice: price
+				}));
+			}
+		} catch (error) {
+			console.error("Failed to purchase pixel:", error);
+		}
 	};
 
-	const handleCellClick = (cell: any) => {
-		console.log("handleCellClick", cell);
+	const handleCellClick = (cell: Pixel) => {
 		setSelectedSpace(cell);
 	};
 

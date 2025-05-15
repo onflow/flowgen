@@ -1,19 +1,13 @@
 "use server";
 
-interface PixelData {
-	x: number;
-	y: number;
-	isTaken: boolean;
-	ownerId?: string; // User ID of the owner
-	nftId?: string; // Would be the NFT ID on Flow / unique ID for the pixel in Web2
-	imageURL?: string;
-	prompt?: string;
-	style?: string;
-	// For marketplace features later
-	price?: number;
-	isListed?: boolean;
-	listingId?: string;
-}
+import {
+	PixelBlockAvailabilityResult,
+	PixelData,
+	PixelSpaceResult,
+	PixelMarketResult,
+	PixelBuyResult,
+	CanvasOverview,
+} from "@/lib/pixel-types";
 
 // In-memory store to simulate a database.
 // The key is a string like "x_y" (e.g., "10_20").
@@ -31,7 +25,7 @@ export async function acquirePixelSpaceServerAction(data: {
 	imageURL: string;
 	paymentAmount: number; // Currently unused in this mock
 	userId: string;
-}): Promise<{ success: boolean; pixelId?: string; error?: string }> {
+}): Promise<PixelSpaceResult> {
 	const { x, y, prompt, style, imageURL, userId } = data;
 	const pixelKey = `${x}_${y}`;
 
@@ -67,10 +61,7 @@ export async function checkPixelBlockAvailabilityServerAction(data: {
 	startY: number;
 	width: number;
 	height: number;
-}): Promise<{
-	isAvailable: boolean;
-	firstUnavailablePixel?: { x: number; y: number };
-}> {
+}): Promise<PixelBlockAvailabilityResult> {
 	const { startX, startY, width, height } = data;
 
 	for (let y = startY; y < startY + height; y++) {
@@ -133,12 +124,7 @@ export async function initializeUserProfileServerAction(
 /**
  * Server Action: Simulates retrieving overall statistics for the pixel canvas.
  */
-export async function getCanvasOverviewServerAction(): Promise<{
-	resolution: string;
-	totalPixels: number;
-	soldPixels: number;
-	currentPrice: number; // This would be dynamic based on some logic
-}> {
+export async function getCanvasOverviewServerAction(): Promise<CanvasOverview> {
 	console.log("Server Action: Get canvas overview");
 	let takenCount = 0;
 	pixelStore.forEach((pixel) => {
@@ -188,7 +174,7 @@ export async function listPixelOnMarketServerAction(data: {
 	pixelId: string; // Using nftId from PixelData as pixelId
 	price: number;
 	sellerUserId: string;
-}): Promise<{ success: boolean; listingId?: string; error?: string }> {
+}): Promise<PixelMarketResult> {
 	const { pixelId, price, sellerUserId } = data;
 	let foundPixelKey: string | undefined;
 	pixelStore.forEach((pixel, key) => {
@@ -220,7 +206,7 @@ export async function listPixelOnMarketServerAction(data: {
 export async function buyListedPixelServerAction(data: {
 	listingId: string;
 	buyerUserId: string;
-}): Promise<{ success: boolean; transactionId?: string; error?: string }> {
+}): Promise<PixelBuyResult> {
 	const { listingId, buyerUserId } = data;
 	let foundPixelKey: string | undefined;
 	let originalOwnerId: string | undefined;
@@ -256,7 +242,7 @@ export async function buyListedPixelServerAction(data: {
 export async function unlistPixelFromMarketServerAction(data: {
 	listingId: string;
 	ownerUserId: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<PixelMarketResult> {
 	const { listingId, ownerUserId } = data;
 	let foundPixelKey: string | undefined;
 

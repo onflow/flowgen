@@ -4,7 +4,7 @@ import * as schema from "./schema";
 import * as dotenv from "dotenv";
 
 dotenv.config({
-	path: ".env.local",
+	path: [".env.development.local", ".env.local", ".env"],
 });
 
 if (!process.env.DATABASE_URL) {

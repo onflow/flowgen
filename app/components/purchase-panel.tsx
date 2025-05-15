@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
+import { acquirePixelSpace } from "../../lib/pixel-api";
 
 type PurchasePanelProps = {
 	selectedSpace: {
@@ -30,101 +31,74 @@ export default function PurchasePanel({
 	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
 
 	const handleGenerate = async () => {
-		if (!selectedSpace || !user.loggedIn) return;
+		if (!selectedSpace || !user.loggedIn || !user.addr) {
+			console.error(
+				"User not logged in or address not available, or no space selected."
+			);
+			return;
+		}
 
 		setIsGenerating(true);
 
-		// In a real implementation, this would call an AI generation API
-		// and return the generated image URL
+		let imageURL = "";
 		try {
-			// Simulate an API call with a timeout
 			await new Promise((resolve) => setTimeout(resolve, 1500));
-
-			// Simulate a generated image URL for demonstration
-			const imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
-
-			// Now submit the transaction to purchase the pixel
-			setIsSubmitting(true);
-
-			// This would be the actual Flow transaction in a real implementation
-			/*
-      const transaction = executeTransaction(
-        `
-        import FlowGenCanvas from 0xFlowGenCanvas
-        import NonFungibleToken from 0xNonFungibleToken
-        import FungibleToken from 0xFungibleToken
-
-        transaction(
-          x: UInt16,
-          y: UInt16,
-          prompt: String,
-          style: String,
-          imageURL: String,
-          paymentAmount: UFix64
-        ) {
-          // Local variables
-          let paymentVault: @FungibleToken.Vault
-          let receiver: &{FungibleToken.Receiver}
-          let collectionRef: &{NonFungibleToken.CollectionPublic}
-          let adminRef: &FlowGenCanvas.Admin
-          
-          prepare(acct: AuthAccount) {
-            // Setup collection, withdraw payment, get references
-            // Implementation from PurchasePixel.cdc
-          }
-          
-          execute {
-            // Validate payment and pixel availability
-            // Mint NFT
-            // Implementation from PurchasePixel.cdc
-          }
-        }
-        `,
-        [
-          selectedSpace.x,
-          selectedSpace.y,
-          prompt,
-          style,
-          imageURL,
-          (currentPrice + 0.01).toFixed(8) // Include network fee, formatted as UFix64
-        ],
-        {
-          onSuccess: (txId) => {
-            console.log("Transaction success:", txId);
-            setIsGenerating(false);
-            setIsSubmitting(false);
-            onCancel();
-          },
-          onError: (error) => {
-            console.error("Transaction error:", error);
-            setIsGenerating(false);
-            setIsSubmitting(false);
-          }
-        }
-      );
-      
-      await transaction.execute();
-      */
-
-			// Simulate transaction success
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-
-			// Reset states and notify the parent component
-			setIsGenerating(false);
-			setIsSubmitting(false);
-			onCancel();
+			imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
+			console.log("Simulated image generated:", imageURL);
 		} catch (error) {
-			console.error("Error generating or purchasing:", error);
+			console.error("Error simulating image generation:", error);
 			setIsGenerating(false);
+			return;
+		}
+
+		setIsSubmitting(true);
+		setIsGenerating(false);
+
+		try {
+			const purchaseData = {
+				x: selectedSpace.x,
+				y: selectedSpace.y,
+				prompt: prompt,
+				style: style,
+				imageURL: imageURL,
+				paymentAmount: currentPrice + 0.01,
+				userId: user.addr,
+			};
+
+			console.log("Attempting to acquire pixel space with data:", purchaseData);
+			const result = await acquirePixelSpace(
+				purchaseData.x,
+				purchaseData.y,
+				purchaseData.prompt,
+				purchaseData.style,
+				purchaseData.imageURL,
+				purchaseData.paymentAmount,
+				purchaseData.userId
+			);
+
+			if (result.success) {
+				console.log(
+					"Pixel space acquired successfully. Pixel ID:",
+					result.pixelId
+				);
+				onCancel();
+			} else {
+				console.error("Failed to acquire pixel space:", result.error);
+			}
+		} catch (error) {
+			console.error("Error during pixel acquisition process:", error);
+		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
 	if (!selectedSpace) {
 		return (
-			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
+			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
 				<PlusSquare className="h-12 w-12 mb-3" />
-				<h3 className="text-lg font-medium mb-1">Select a Space</h3>
+				<h3 className="text-lg font-medium mb-1 dark:text-gray-200">
+					Select a Space
+				</h3>
 				<p className="text-sm">
 					Click on any available space on the canvas to purchase and create your
 					AI-generated image.
@@ -135,10 +109,10 @@ export default function PurchasePanel({
 
 	if (!user.loggedIn) {
 		return (
-			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
+			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
 				<Wallet className="h-12 w-12 mb-3" />
 				<button
-					className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium"
+					className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
 					onClick={() => authenticate()}
 				>
 					Connect Wallet
@@ -148,25 +122,25 @@ export default function PurchasePanel({
 	}
 
 	return (
-		<div>
+		<div className="dark:text-gray-200">
 			<h2 className="text-xl font-bold mb-4">Purchase this Space</h2>
 			<div className="mb-4">
-				<div className="bg-white border border-gray-300 p-4 rounded-lg text-center">
-					<div className="text-6xl mb-2 text-gray-400">
+				<div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-4 rounded-lg text-center">
+					<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
 						<Image className="mx-auto h-16 w-16" />
 					</div>
-					<p className="text-sm text-gray-500">
+					<p className="text-sm text-gray-500 dark:text-gray-400">
 						Position: ({selectedSpace.x}, {selectedSpace.y})
 					</p>
 				</div>
 			</div>
 
 			<div className="mb-6">
-				<label className="block text-sm font-medium text-gray-700 mb-2">
+				<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
 					Your AI Prompt
 				</label>
 				<textarea
-					className="w-full border border-gray-300 rounded-lg p-3 h-24"
+					className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 h-24 bg-white dark:bg-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500"
 					placeholder="Describe the image you want to generate..."
 					value={prompt}
 					onChange={(e) => setPrompt(e.target.value)}
@@ -174,11 +148,11 @@ export default function PurchasePanel({
 			</div>
 
 			<div className="mb-6">
-				<label className="block text-sm font-medium text-gray-700 mb-2">
+				<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
 					Style Preset
 				</label>
 				<select
-					className="w-full border border-gray-300 rounded-lg p-3 bg-white"
+					className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
 					value={style}
 					onChange={(e) => setStyle(e.target.value)}
 				>
@@ -190,16 +164,16 @@ export default function PurchasePanel({
 				</select>
 			</div>
 
-			<div className="bg-blue-50 p-4 rounded-lg mb-6">
-				<div className="flex justify-between mb-2">
+			<div className="bg-blue-50 dark:bg-gray-800 p-4 rounded-lg mb-6">
+				<div className="flex justify-between mb-2 text-gray-800 dark:text-gray-300">
 					<span>Price per cell</span>
 					<span className="font-medium">{currentPrice.toFixed(2)} FLOW</span>
 				</div>
-				<div className="flex justify-between mb-2 border-b border-blue-100 pb-2">
+				<div className="flex justify-between mb-2 border-b border-blue-100 dark:border-gray-700 pb-2 text-gray-800 dark:text-gray-300">
 					<span>Network fee</span>
 					<span className="font-medium">0.01 FLOW</span>
 				</div>
-				<div className="flex justify-between font-bold mt-2">
+				<div className="flex justify-between font-bold mt-2 text-gray-900 dark:text-gray-100">
 					<span>Total</span>
 					<span>{(currentPrice + 0.01).toFixed(2)} FLOW</span>
 				</div>
@@ -207,16 +181,16 @@ export default function PurchasePanel({
 
 			<div className="grid grid-cols-2 gap-3">
 				<button
-					className="bg-white text-gray-600 border border-gray-300 py-2 rounded-lg font-medium"
+					className="bg-white dark:bg-gray-600 hover:bg-gray-100 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-500 py-2 rounded-lg font-medium"
 					onClick={onCancel}
 					disabled={isGenerating || isSubmitting}
 				>
 					Cancel
 				</button>
 				<button
-					className={`bg-blue-600 text-white py-2 rounded-lg font-medium flex items-center justify-center ${
+					className={`bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${
 						isGenerating || isSubmitting || !prompt
-							? "opacity-50 cursor-not-allowed"
+							? "opacity-50 cursor-not-allowed dark:opacity-60"
 							: ""
 					}`}
 					onClick={handleGenerate}

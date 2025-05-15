@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import "./config/flow";
+import "../config/flow";
 import Navigation from "./components/Navigation";
 import { FlowContextProvider } from "./context/flow-context";
 import Header from "./components/header";

@@ -64,6 +64,16 @@ export default function AIPixelCanvas() {
 		fetchPixelData(0, 0, gridSize, gridSize);
 	}, [fetchCanvasOverview, fetchPixelData, gridSize]);
 
+	// Callback for when a purchase is successful
+	const handlePurchaseSuccess = useCallback(async () => {
+		console.log("Purchase successful, refreshing canvas data...");
+		setSelectedSpace(null); // Clear selection
+		setIsLoading(true); // Show loading indicator during refresh
+		await fetchCanvasOverview();
+		// fetchPixelData will set isLoading to false when done
+		await fetchPixelData(0, 0, gridSize, gridSize);
+	}, [fetchCanvasOverview, fetchPixelData, gridSize]); // Added gridSize to dependencies
+
 	// Generate the full grid data, including placeholders for empty pixels
 	const fullGridPixels: PixelData[] = [];
 	if (!isLoading) {
@@ -125,14 +135,6 @@ export default function AIPixelCanvas() {
 		}
 	};
 
-	if (isLoading && pixelsData.length === 0) {
-		return (
-			<div className="flex justify-center items-center h-screen">
-				Loading Canvas...
-			</div>
-		);
-	}
-
 	if (error) {
 		return (
 			<div className="flex justify-center items-center h-screen">
@@ -164,18 +166,17 @@ export default function AIPixelCanvas() {
 						selectedSpace={
 							selectedSpace
 								? {
-										// selectedSpace is PixelData, transform for PurchasePanel
 										id: selectedSpace.id!,
 										x: selectedSpace.x,
 										y: selectedSpace.y,
 										owner: selectedSpace.ownerId || null,
 										image: selectedSpace.imageURL || null,
-										// Removed extra fields like isTaken, prompt, style
 								  }
 								: null
 						}
 						currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}
 						onCancel={() => setSelectedSpace(null)}
+						onPurchaseSuccess={handlePurchaseSuccess}
 					/>
 				</div>
 			</main>

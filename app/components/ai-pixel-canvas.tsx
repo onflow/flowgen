@@ -84,9 +84,6 @@ export default function AIPixelCanvas() {
 
 	return (
 		<div className="flex flex-col h-screen">
-			{/* Header */}
-			<Header />
-
 			{/* Main Content */}
 			<main className="flex flex-1 overflow-hidden">
 				{/* Canvas View */}

@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
+import * as fcl from "@onflow/fcl";
+import "../config/flow";
 
 type PurchasePanelProps = {
 	selectedSpace: {
@@ -15,12 +17,20 @@ type PurchasePanelProps = {
 	} | null;
 	currentPrice: number;
 	onCancel: () => void;
+	onPixelPurchased: (pixel: {
+		id: number;
+		x: number;
+		y: number;
+		owner: string | null;
+		image: string | null;
+	}) => void;
 };
 
 export default function PurchasePanel({
 	selectedSpace,
 	currentPrice,
 	onCancel,
+	onPixelPurchased,
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
 	const [style, setStyle] = useState("Photorealistic");
@@ -30,95 +40,112 @@ export default function PurchasePanel({
 	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
 
 	const handleGenerate = async () => {
-		if (!selectedSpace || !user.loggedIn) return;
+		if (!selectedSpace || !user?.loggedIn || !user?.addr) return;
 
 		setIsGenerating(true);
-
-		// In a real implementation, this would call an AI generation API
-		// and return the generated image URL
 		try {
-			// Simulate an API call with a timeout
-			await new Promise((resolve) => setTimeout(resolve, 1500));
-
-			// Simulate a generated image URL for demonstration
+			// 1. Generate random image
 			const imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
+			await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate generation
 
-			// Now submit the transaction to purchase the pixel
 			setIsSubmitting(true);
 
-			// This would be the actual Flow transaction in a real implementation
-			/*
-      const transaction = executeTransaction(
-        `
-        import FlowGenCanvas from 0xFlowGenCanvas
-        import NonFungibleToken from 0xNonFungibleToken
-        import FungibleToken from 0xFungibleToken
+			// 2. Purchase transaction
+			const transactionId = await fcl.mutate({
+				cadence: `
+					import FungibleToken from 0x9a0766d93b6608b7
+					import NonFungibleToken from 0x631e88ae7f1d7c20
+					import FlowGenPixel from 0xFlowGenPixel
+					import FlowGenCanvas from 0xFlowGenCanvas
 
-        transaction(
-          x: UInt16,
-          y: UInt16,
-          prompt: String,
-          style: String,
-          imageURL: String,
-          paymentAmount: UFix64
-        ) {
-          // Local variables
-          let paymentVault: @FungibleToken.Vault
-          let receiver: &{FungibleToken.Receiver}
-          let collectionRef: &{NonFungibleToken.CollectionPublic}
-          let adminRef: &FlowGenCanvas.Admin
-          
-          prepare(acct: AuthAccount) {
-            // Setup collection, withdraw payment, get references
-            // Implementation from PurchasePixel.cdc
-          }
-          
-          execute {
-            // Validate payment and pixel availability
-            // Mint NFT
-            // Implementation from PurchasePixel.cdc
-          }
-        }
-        `,
-        [
-          selectedSpace.x,
-          selectedSpace.y,
-          prompt,
-          style,
-          imageURL,
-          (currentPrice + 0.01).toFixed(8) // Include network fee, formatted as UFix64
-        ],
-        {
-          onSuccess: (txId) => {
-            console.log("Transaction success:", txId);
-            setIsGenerating(false);
-            setIsSubmitting(false);
-            onCancel();
-          },
-          onError: (error) => {
-            console.error("Transaction error:", error);
-            setIsGenerating(false);
-            setIsSubmitting(false);
-          }
-        }
-      );
-      
-      await transaction.execute();
-      */
+					transaction(
+						x: UInt16,
+						y: UInt16,
+						name: String,
+						description: String,
+						thumbnailURL: String,
+						aiPrompt: String,
+						imageURI: String,
+						pixelArtURI: String,
+						imageHash: String,
+						paymentAmount: UFix64
+					) {
+						let paymentVault: @FungibleToken.Vault
+						let pixelCollection: &FlowGenPixel.Collection
 
-			// Simulate transaction success
-			await new Promise((resolve) => setTimeout(resolve, 1000));
+						prepare(signer: AuthAccount) {
+							// Get payment vault
+							let vaultRef = signer.borrow<&FungibleToken.Vault>(from: /storage/flowTokenVault)
+								?? panic("Could not borrow Flow token vault")
+							self.paymentVault <- vaultRef.withdraw(amount: paymentAmount)
 
-			// Reset states and notify the parent component
-			setIsGenerating(false);
-			setIsSubmitting(false);
-			onCancel();
+							// Setup pixel collection if needed
+							if signer.borrow<&FlowGenPixel.Collection>(from: /storage/FlowGenPixelCollection) == nil {
+								signer.save(<-FlowGenPixel.createEmptyCollection(), to: /storage/FlowGenPixelCollection)
+							}
+
+							self.pixelCollection = signer.borrow<&FlowGenPixel.Collection>(from: /storage/FlowGenPixelCollection)
+								?? panic("Could not borrow pixel collection")
+						}
+
+						execute {
+							// Purchase pixel
+							FlowGenCanvas.purchasePixel(
+								x: x,
+								y: y,
+								payment: <-self.paymentVault,
+								metadata: {
+									"name": name,
+									"description": description,
+									"thumbnail": thumbnailURL,
+									"prompt": aiPrompt,
+									"image": imageURI,
+									"pixelArt": pixelArtURI,
+									"hash": imageHash
+								},
+								pixelCollection: self.pixelCollection
+							)
+						}
+					}
+				`,
+				args: (arg, t) => [
+					arg(selectedSpace.x, t.UInt16),
+					arg(selectedSpace.y, t.UInt16),
+					arg(`Pixel Art #${selectedSpace.x}-${selectedSpace.y}`, t.String),
+					arg(prompt, t.String),
+					arg(imageURL, t.String),
+					arg(prompt, t.String),
+					arg(imageURL, t.String),
+					arg(imageURL, t.String),
+					arg(`hash-${Date.now()}`, t.String),
+					arg((currentPrice + 0.01).toFixed(8), t.UFix64)
+				],
+				limit: 999
+			});
+
+			// 3. Monitor transaction
+			fcl.tx(transactionId).subscribe(transaction => {
+				if (transaction.status === 4) { // status 4 is Sealed
+					const newPixel = {
+						...selectedSpace,
+						owner: user?.addr || null,
+						image: imageURL
+					};
+					onPixelPurchased(newPixel);
+					setIsGenerating(false);
+					setIsSubmitting(false);
+				}
+			});
+
 		} catch (error) {
 			console.error("Error generating or purchasing:", error);
 			setIsGenerating(false);
 			setIsSubmitting(false);
+			onCancel();
 		}
 	};
+
+	console.log("selectedSpace", selectedSpace);
 
 	if (!selectedSpace) {
 		return (
@@ -129,6 +156,22 @@ export default function PurchasePanel({
 					Click on any available space on the canvas to purchase and create your
 					AI-generated image.
 				</p>
+			</div>
+		);
+	} else if (selectedSpace.owner === user?.addr) {
+		return (
+			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
+				<h3 className="text-lg font-medium mb-1">You already own this space</h3>
+				<div className="mb-4">
+					<div className="bg-white border border-gray-300 p-4 rounded-lg text-center">
+						<div className="text-6xl mb-2 text-gray-400">
+							<img src={selectedSpace.image || ''} alt="Selected space" width={64} height={64} className="mx-auto h-16 w-16" />
+						</div>
+						<p className="text-sm text-gray-500">
+							Position: ({selectedSpace.x}, {selectedSpace.y})
+						</p>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -214,11 +257,10 @@ export default function PurchasePanel({
 					Cancel
 				</button>
 				<button
-					className={`bg-blue-600 text-white py-2 rounded-lg font-medium flex items-center justify-center ${
-						isGenerating || isSubmitting || !prompt
-							? "opacity-50 cursor-not-allowed"
-							: ""
-					}`}
+					className={`bg-blue-600 text-white py-2 rounded-lg font-medium flex items-center justify-center ${isGenerating || isSubmitting || !prompt
+						? "opacity-50 cursor-not-allowed"
+						: ""
+						}`}
 					onClick={handleGenerate}
 					disabled={isGenerating || isSubmitting || !prompt}
 				>

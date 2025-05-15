@@ -12,6 +12,8 @@ export default function AIPixelCanvas() {
 		soldPercentage: 0,
 		currentPrice: 10, // Default starting price
 	});
+	const [gridData, setGridData] = useState<any[]>([]);
+	const gridSize = 20;
 
 	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
 
@@ -29,7 +31,7 @@ export default function AIPixelCanvas() {
 					let soldPixels = FlowGenCanvas.soldPixels
 					let soldPercentage = UFix64(soldPixels) / UFix64(totalPixels)
 					let currentPrice = FlowGenCanvas.getCurrentPrice()
-					
+
 					return {
 						"totalPixels": totalPixels,
 						"soldPixels": soldPixels,
@@ -37,7 +39,7 @@ export default function AIPixelCanvas() {
 						"currentPrice": currentPrice,
 						"canvasWidth": FlowGenCanvas.canvasWidth,
 						"canvasHeight": FlowGenCanvas.canvasHeight
-					    }
+						}
 				}
 				`
 			);
@@ -63,23 +65,33 @@ export default function AIPixelCanvas() {
 		}
 	}, [user.loggedIn]);
 
-	// Mock data for the grid
-	const gridSize = 20; // 20x20 grid for demonstration
-	const gridData = Array(gridSize * gridSize)
-		.fill(null)
-		.map((_, i) => ({
-			id: i,
-			x: i % gridSize,
-			y: Math.floor(i / gridSize),
-			owner: Math.random() > 0.7 ? "Someone" : null,
-			image:
-				Math.random() > 0.7 ? `https://picsum.photos/seed/${i}/50/50` : null,
-		}));
+	// Initialize grid data once on component mount
+	useEffect(() => {
+		const initialGridData = Array(gridSize * gridSize)
+			.fill(null)
+			.map((_, i) => ({
+				id: i,
+				x: i % gridSize,
+				y: Math.floor(i / gridSize),
+				owner: Math.random() > 0.7 ? "Someone" : null,
+				image: Math.random() > 0.7 ? `https://picsum.photos/seed/${i}/50/50` : null,
+			}));
+		setGridData(initialGridData);
+	}, []);
+
+	// Update grid when pixel is purchased
+	const handlePixelPurchased = (newPixel: any) => {
+		setGridData(prevGrid =>
+			prevGrid.map(pixel =>
+				pixel.id === newPixel.id ? newPixel : pixel
+			)
+		);
+		setSelectedSpace(newPixel);
+	};
 
 	const handleCellClick = (cell: any) => {
-		if (!cell.owner) {
-			setSelectedSpace(cell);
-		}
+		console.log("handleCellClick", cell);
+		setSelectedSpace(cell);
 	};
 
 	return (
@@ -104,6 +116,7 @@ export default function AIPixelCanvas() {
 						selectedSpace={selectedSpace}
 						currentPrice={canvasState.currentPrice}
 						onCancel={() => setSelectedSpace(null)}
+						onPixelPurchased={handlePixelPurchased}
 					/>
 				</div>
 			</main>

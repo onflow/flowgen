@@ -32,13 +32,8 @@ export default function PixelGrid({
   const [selectedPixel, setSelectedPixel] = useState<Pixel | null>(null);
 
   const handleCellClick = (cell: any) => {
-    if (cell.owner) {
-      // Show pixel details
-      setSelectedPixel(cell);
-    } else {
-      // Show purchase panel
-      onCellClick(cell);
-    }
+    console.log("handleCellClick", cell);
+    onCellClick(cell);
   };
 
   return (

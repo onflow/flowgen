@@ -50,4 +50,6 @@ emulator-account.pkey
 imports
 
 **/.claude/settings.local.json
+
+.vercel
 .env*.local

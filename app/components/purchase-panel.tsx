@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
+import * as fcl from "@onflow/fcl";
 import { acquirePixelSpace } from "../../lib/pixel-api";
 
 type PurchasePanelProps = {
@@ -16,6 +17,13 @@ type PurchasePanelProps = {
 	} | null;
 	currentPrice: number;
 	onCancel: () => void;
+	onPixelPurchased: (pixel: {
+		id: number;
+		x: number;
+		y: number;
+		owner: string | null;
+		image: string | null;
+	}) => void;
 	onPurchaseSuccess: () => void;
 };
 
@@ -23,6 +31,7 @@ export default function PurchasePanel({
 	selectedSpace,
 	currentPrice,
 	onCancel,
+	onPixelPurchased,
 	onPurchaseSuccess,
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
@@ -40,21 +49,109 @@ export default function PurchasePanel({
 			return;
 		}
 
-		setIsGenerating(true);
 
 		let imageURL = "";
+		await new Promise((resolve) => setTimeout(resolve, 1500));
+		imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
+		console.log("Simulated image generated:", imageURL);
+
+		setIsGenerating(true);
 		try {
-			await new Promise((resolve) => setTimeout(resolve, 1500));
-			imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
-			console.log("Simulated image generated:", imageURL);
+			// 1. Generate random image
+			setIsSubmitting(true);
+
+			// 2. Purchase transaction
+			const transactionId = await fcl.mutate({
+				cadence: `
+					import FungibleToken from 0x9a0766d93b6608b7
+					import NonFungibleToken from 0x631e88ae7f1d7c20
+					import FlowGenPixel from 0xFlowGenPixel
+					import FlowGenCanvas from 0xFlowGenCanvas
+
+					transaction(
+						x: UInt16,
+						y: UInt16,
+						name: String,
+						description: String,
+						thumbnailURL: String,
+						aiPrompt: String,
+						imageURI: String,
+						pixelArtURI: String,
+						imageHash: String,
+						paymentAmount: UFix64
+					) {
+						let paymentVault: @FungibleToken.Vault
+						let pixelCollection: &FlowGenPixel.Collection
+
+						prepare(signer: AuthAccount) {
+							// Get payment vault
+							let vaultRef = signer.borrow<&FungibleToken.Vault>(from: /storage/flowTokenVault)
+								?? panic("Could not borrow Flow token vault")
+							self.paymentVault <- vaultRef.withdraw(amount: paymentAmount)
+
+							// Setup pixel collection if needed
+							if signer.borrow<&FlowGenPixel.Collection>(from: /storage/FlowGenPixelCollection) == nil {
+								signer.save(<-FlowGenPixel.createEmptyCollection(), to: /storage/FlowGenPixelCollection)
+							}
+
+							self.pixelCollection = signer.borrow<&FlowGenPixel.Collection>(from: /storage/FlowGenPixelCollection)
+								?? panic("Could not borrow pixel collection")
+						}
+
+						execute {
+							// Purchase pixel
+							FlowGenCanvas.purchasePixel(
+								x: x,
+								y: y,
+								payment: <-self.paymentVault,
+								metadata: {
+									"name": name,
+									"description": description,
+									"thumbnail": thumbnailURL,
+									"prompt": aiPrompt,
+									"image": imageURI,
+									"pixelArt": pixelArtURI,
+									"hash": imageHash
+								},
+								pixelCollection: self.pixelCollection
+							)
+						}
+					}
+				`,
+				args: (arg, t) => [
+					arg(selectedSpace.x, t.UInt16),
+					arg(selectedSpace.y, t.UInt16),
+					arg(`Pixel Art #${selectedSpace.x}-${selectedSpace.y}`, t.String),
+					arg(prompt, t.String),
+					arg(imageURL, t.String),
+					arg(prompt, t.String),
+					arg(imageURL, t.String),
+					arg(imageURL, t.String),
+					arg(`hash-${Date.now()}`, t.String),
+					arg((currentPrice + 0.01).toFixed(8), t.UFix64)
+				],
+				limit: 999
+			});
+
+			// 3. Monitor transaction
+			fcl.tx(transactionId).subscribe(transaction => {
+				if (transaction.status === 4) { // status 4 is Sealed
+					const newPixel = {
+						...selectedSpace,
+						owner: user?.addr || null,
+						image: imageURL
+					};
+					onPixelPurchased(newPixel);
+					setIsGenerating(false);
+					setIsSubmitting(false);
+				}
+			});
+
 		} catch (error) {
 			console.error("Error simulating image generation:", error);
 			setIsGenerating(false);
 			return;
 		}
-
-		setIsSubmitting(true);
-		setIsGenerating(false);
 
 		try {
 			const purchaseData = {
@@ -91,8 +188,11 @@ export default function PurchasePanel({
 			console.error("Error during pixel acquisition process:", error);
 		} finally {
 			setIsSubmitting(false);
+			onCancel();
 		}
 	};
+
+	console.log("selectedSpace", selectedSpace);
 
 	if (!selectedSpace) {
 		return (
@@ -105,6 +205,22 @@ export default function PurchasePanel({
 					Click on any available space on the canvas to purchase and create your
 					AI-generated image.
 				</p>
+			</div>
+		);
+	} else if (selectedSpace.owner === user?.addr) {
+		return (
+			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
+				<h3 className="text-lg font-medium mb-1">You already own this space</h3>
+				<div className="mb-4">
+					<div className="bg-white border border-gray-300 p-4 rounded-lg text-center">
+						<div className="text-6xl mb-2 text-gray-400">
+							<img src={selectedSpace.image || ''} alt="Selected space" width={64} height={64} className="mx-auto h-16 w-16" />
+						</div>
+						<p className="text-sm text-gray-500">
+							Position: ({selectedSpace.x}, {selectedSpace.y})
+						</p>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -190,11 +306,10 @@ export default function PurchasePanel({
 					Cancel
 				</button>
 				<button
-					className={`bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${
-						isGenerating || isSubmitting || !prompt
-							? "opacity-50 cursor-not-allowed dark:opacity-60"
-							: ""
-					}`}
+					className={`bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${isGenerating || isSubmitting || !prompt
+						? "opacity-50 cursor-not-allowed dark:opacity-60"
+						: ""
+						}`}
 					onClick={handleGenerate}
 					disabled={isGenerating || isSubmitting || !prompt}
 				>

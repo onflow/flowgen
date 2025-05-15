@@ -166,16 +166,17 @@ export default function AIPixelCanvas() {
 						selectedSpace={
 							selectedSpace
 								? {
-										id: selectedSpace.id!,
-										x: selectedSpace.x,
-										y: selectedSpace.y,
-										owner: selectedSpace.ownerId || null,
-										image: selectedSpace.imageURL || null,
-								  }
+									id: selectedSpace.id!,
+									x: selectedSpace.x,
+									y: selectedSpace.y,
+									owner: selectedSpace.ownerId || null,
+									image: selectedSpace.imageURL || null,
+								}
 								: null
 						}
 						currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}
 						onCancel={() => setSelectedSpace(null)}
+						onPixelPurchased={handlePurchaseSuccess}
 						onPurchaseSuccess={handlePurchaseSuccess}
 					/>
 				</div>

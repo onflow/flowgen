@@ -1,4 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+type Pixel = {
+  id: number;
+  x: number;
+  y: number;
+  owner: string | null;
+  image: string | null;
+};
 
 type PixelGridProps = {
   gridSize: number;
@@ -14,13 +22,20 @@ type PixelGridProps = {
   currentPrice: number;
 };
 
-export default function PixelGrid({ 
-  gridSize, 
-  gridData, 
-  onCellClick, 
-  soldPercentage, 
-  currentPrice 
+export default function PixelGrid({
+  gridSize,
+  gridData,
+  onCellClick,
+  soldPercentage,
+  currentPrice
 }: PixelGridProps) {
+  const [selectedPixel, setSelectedPixel] = useState<Pixel | null>(null);
+
+  const handleCellClick = (cell: any) => {
+    console.log("handleCellClick", cell);
+    onCellClick(cell);
+  };
+
   return (
     <div className="flex-1 p-4 overflow-auto">
       <div className="mb-4 flex justify-between items-center">
@@ -29,24 +44,24 @@ export default function PixelGrid({
           <span className="font-bold">{(soldPercentage * 100).toFixed(1)}%</span> sold • Current price: <span className="font-bold">{currentPrice.toFixed(2)} FLOW</span> per cell
         </div>
       </div>
-      
+
       <div className="border border-gray-300 inline-block">
         <div className="grid" style={{ display: 'grid', gridTemplateColumns: `repeat(${gridSize}, 25px)` }}>
           {gridData.map((cell) => (
             <div
               key={cell.id}
               className={`h-6 w-6 border border-gray-200 ${!cell.owner ? 'cursor-pointer hover:bg-blue-100' : ''}`}
-              style={{ 
+              style={{
                 backgroundColor: cell.owner ? '#f0f0f0' : 'white',
                 backgroundImage: cell.image ? `url(${cell.image})` : 'none',
                 backgroundSize: 'cover'
               }}
-              onClick={() => onCellClick(cell)}
+              onClick={() => handleCellClick(cell)}
             />
           ))}
         </div>
       </div>
-      
+
       <div className="mt-4 text-sm text-gray-600">
         Click on any available white space to purchase
       </div>

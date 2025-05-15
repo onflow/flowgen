@@ -6,12 +6,7 @@
 				"testing": "0000000000000007"
 			}
 		},
-		"FlowGenPixel": {
-			"source": "cadence/contracts/FlowGenPixel.cdc",
-			"aliases": {
-				"testing": "0000000000000007"
-			}
-		},
+		"FlowGenPixel": "cadence/contracts/FlowGenPixel.cdc",
 		"FooBar": "cadence/contracts/FooBar.cdc"
 	},
 	"dependencies": {
@@ -69,7 +64,7 @@
 	},
 	"accounts": {
 		"admin": {
-			"address": "e2f72218abeec2b9",
+			"address": "179b6b1cb6755e31",
 			"key": {
 				"type": "file",
 				"location": "keys/admin.pkey"
@@ -99,9 +94,7 @@
 	},
 	"deployments": {
 		"emulator": {
-			"emulator-account": [
-				"FooBar"
-			]
+			"emulator-account": ["FlowGenPixel", "FlowGenCanvas"]
 		}
 	}
 }

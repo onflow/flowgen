@@ -4,9 +4,10 @@
 	"private": true,
 	"scripts": {
 		"dev": "next dev --turbopack",
-		"build": "next build",
+		"build": "pnpm migrate && next build",
 		"start": "next start",
-		"lint": "next lint"
+		"lint": "next lint",
+		"migrate": "pnpm drizzle-kit migrate"
 	},
 	"dependencies": {
 		"@onflow/fcl": "^1.17.0",

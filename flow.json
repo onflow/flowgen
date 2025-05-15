@@ -68,21 +68,40 @@
 		"testnet": "access.devnet.nodes.onflow.org:9000"
 	},
 	"accounts": {
+		"admin": {
+			"address": "e2f72218abeec2b9",
+			"key": {
+				"type": "file",
+				"location": "keys/admin.pkey"
+			}
+		},
 		"emulator-account": {
 			"address": "f8d6e0586b0a20c7",
 			"key": {
 				"type": "file",
-				"location": "emulator-account.pkey"
+				"location": "keys/emulator-account.pkey"
 			}
 		},
-		"test-acct": {
-			"address": "179b6b1cb6755e31",
-			"key": "2a63cdc1b5d10ab68cc4132201d8fbf20c300615f69a3c83ae4a9f28855d34b2"
+		"receiver": {
+			"address": "10c4fef62310c807",
+			"key": {
+				"type": "file",
+				"location": "keys/receiver.pkey"
+			}
+		},
+		"user-one": {
+			"address": "06909bc5ba14c266",
+			"key": {
+				"type": "file",
+				"location": "keys/user-one.pkey"
+			}
 		}
 	},
 	"deployments": {
 		"emulator": {
-			"emulator-account": ["FooBar"]
+			"emulator-account": [
+				"FooBar"
+			]
 		}
 	}
 }

@@ -15,7 +15,7 @@ import {
 	buyListedPixelServerAction,
 	unlistPixelFromMarketServerAction,
 	getActiveMarketListingsServerAction,
-} from "../actions/canvas-actions";
+} from "../app/actions/canvas-actions";
 
 // Re-export PixelData if needed by the client, or define a similar client-side type
 // For now, we assume the return types from server actions are directly usable or

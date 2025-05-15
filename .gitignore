@@ -50,3 +50,4 @@ emulator-account.pkey
 imports
 
 **/.claude/settings.local.json
+.env*.local

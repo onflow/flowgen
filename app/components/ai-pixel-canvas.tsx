@@ -96,9 +96,6 @@ export default function AIPixelCanvas() {
 
 	return (
 		<div className="flex flex-col h-screen">
-			{/* Header */}
-			<Header />
-
 			{/* Main Content */}
 			<main className="flex flex-1 overflow-hidden">
 				{/* Canvas View */}
@@ -111,7 +108,7 @@ export default function AIPixelCanvas() {
 				/>
 
 				{/* Sidebar - Purchase Panel */}
-				<div className="w-96 bg-gray-50 p-6 border-l border-gray-200 overflow-y-auto">
+				<div className="w-96 bg-gray-50 dark:bg-gray-800 p-6 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
 					<PurchasePanel
 						selectedSpace={selectedSpace}
 						currentPrice={canvasState.currentPrice}

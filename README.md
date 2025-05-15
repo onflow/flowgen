@@ -58,3 +58,9 @@ Once you've done that, then you can generate the accounts
 chmod +x create_flow_accounts.sh
 ./create_flow_accounts.sh
 ```
+
+Run dev wallet
+
+```bash
+flow dev-wallet
+```

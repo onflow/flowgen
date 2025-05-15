@@ -34,3 +34,27 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Flow Setup
+
+- Install the Flow CLI
+- Start the emulator
+- Generate a private key for:
+
+1. emulator-account - keys/emulator-account.pkey
+2. admin (owns the contract) - keys/admin.pkey
+3. user one (user of the service) - keys/user-one.pkey
+4. receiver (who gets commission) - keys/receiver.pkey
+
+```bash
+flow keys generate -o 'json' > keys/admin.json
+flow keys generate -o 'json' > keys/user-one.json
+flow keys generate -o 'json' > keys/receiver.json
+```
+
+Once you've done that, then you can generate the accounts
+
+```bash
+chmod +x create_flow_accounts.sh
+./create_flow_accounts.sh
+```

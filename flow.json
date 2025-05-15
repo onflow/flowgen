@@ -6,18 +6,13 @@
 				"testing": "0000000000000007"
 			}
 		},
-		"Counter": {
-			"source": "cadence/contracts/Counter.cdc",
+		"FlowGenPixel": {
+			"source": "cadence/contracts/FlowGenPixel.cdc",
 			"aliases": {
 				"testing": "0000000000000007"
 			}
 		},
-		"FooBar": {
-			"source": "cadence/contracts/FooBar.cdc",
-			"aliases": {
-				"testing": "0000000000000007"
-			}
-		}
+		"FooBar": "cadence/contracts/FooBar.cdc"
 	},
 	"dependencies": {
 		"Burner": {
@@ -73,12 +68,40 @@
 		"testnet": "access.devnet.nodes.onflow.org:9000"
 	},
 	"accounts": {
+		"admin": {
+			"address": "e2f72218abeec2b9",
+			"key": {
+				"type": "file",
+				"location": "keys/admin.pkey"
+			}
+		},
 		"emulator-account": {
 			"address": "f8d6e0586b0a20c7",
 			"key": {
 				"type": "file",
-				"location": "emulator-account.pkey"
+				"location": "keys/emulator-account.pkey"
 			}
+		},
+		"receiver": {
+			"address": "10c4fef62310c807",
+			"key": {
+				"type": "file",
+				"location": "keys/receiver.pkey"
+			}
+		},
+		"user-one": {
+			"address": "06909bc5ba14c266",
+			"key": {
+				"type": "file",
+				"location": "keys/user-one.pkey"
+			}
+		}
+	},
+	"deployments": {
+		"emulator": {
+			"emulator-account": [
+				"FooBar"
+			]
 		}
 	}
 }

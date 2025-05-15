@@ -1,9 +1,9 @@
 import Test
-import FlowGenPixel from "../contracts/FlowGenPixel.cdc" // Or named import "FlowGenPixel"
-import FlowGenCanvas from "../contracts/FlowGenCanvas.cdc" // Or named import "FlowGenCanvas"
-import NonFungibleToken from "NonFungibleToken"
-import FungibleToken from "FungibleToken"
-import MetadataViews from "MetadataViews"
+import "FlowGenPixel" // Or named import "FlowGenPixel"
+import "FlowGenCanvas" // Or named import "FlowGenCanvas"
+import "NonFungibleToken"
+import "FungibleToken"
+import "MetadataViews"
 
 access(all) fun testFlowGenCanvasDeploymentAndInitialState() {
     Test.assertEqual(UInt16(1024), FlowGenCanvas.canvasWidth)

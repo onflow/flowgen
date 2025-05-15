@@ -50,5 +50,3 @@ emulator-account.pkey
 imports
 
 **/.claude/settings.local.json
-
-canvas.db

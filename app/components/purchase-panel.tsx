@@ -6,13 +6,24 @@ import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
 import "../config/flow";
-import { Pixel } from '../lib/canvas-db';
 
 type PurchasePanelProps = {
-	selectedSpace: Pixel | null;
+	selectedSpace: {
+		id: number;
+		x: number;
+		y: number;
+		owner: string | null;
+		image: string | null;
+	} | null;
 	currentPrice: number;
 	onCancel: () => void;
-	onPixelPurchased: (pixel: Pixel) => void;
+	onPixelPurchased: (pixel: {
+		id: number;
+		x: number;
+		y: number;
+		owner: string | null;
+		image: string | null;
+	}) => void;
 };
 
 export default function PurchasePanel({
@@ -120,7 +131,6 @@ export default function PurchasePanel({
 						owner: user?.addr || null,
 						image: imageURL
 					};
-					console.log("newPixel", newPixel);
 					onPixelPurchased(newPixel);
 					setIsGenerating(false);
 					setIsSubmitting(false);

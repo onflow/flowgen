@@ -3,7 +3,7 @@
 
 // Import the NFT contract to call its public functions
 // Assuming FlowGenPixel.cdc is in the same directory or path is resolved by flow.json
-import FlowGenPixel from "FlowGenPixel" // Changed to named import
+import "FlowGenPixel" // Changed to named import
 
 access(all) contract FlowGenCanvas {
 

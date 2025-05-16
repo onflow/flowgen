@@ -1,5 +1,5 @@
 // cadence/scripts/GetCanvasSectionData.cdc
-import FlowGenCanvas from "FlowGenCanvas"
+import "FlowGenCanvas"
 
 // This struct returns basic, reliably queryable info for each pixel in a section.
 access(all) struct BasicPixelInfo {

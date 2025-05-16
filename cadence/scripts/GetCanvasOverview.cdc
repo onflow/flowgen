@@ -1,4 +1,4 @@
-import FlowGenCanvas from "FlowGenCanvas"
+import "FlowGenCanvas"
 
 access(all) fun main(): {String: AnyStruct} {
     let widthStr = FlowGenCanvas.canvasWidth.toString()

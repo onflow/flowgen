@@ -1,4 +1,4 @@
-import FlowGenCanvas from "FlowGenCanvas" // Changed to named import
+import "FlowGenCanvas" // Changed to named import
 
 // Returns information about the overall canvas state
 access(all) fun main(): {String: AnyStruct} {

@@ -10,14 +10,15 @@ import {
 	getActiveMarketListings,
 	checkPixelBlockAvailability,
 	getCanvasSectionData,
-} from "./pixel-api";
+} from "../../lib/pixel-api";
 import {
 	PixelData,
 	PixelSpaceResult,
 	PixelMarketResult,
 	CanvasOverview,
-} from "./pixel-types";
-import { acquirePixelSpaceServerAction } from "../app/actions/canvas-actions"; // Import server action directly
+	PixelOnChainData,
+} from "../../lib/pixel-types";
+import { acquirePixelSpaceServerAction } from "../actions/canvas-actions"; // Import server action directly
 
 import { useFlowMutate, useFlowQuery } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
@@ -454,14 +455,6 @@ interface CanvasSectionParams {
 	height: number;
 }
 
-// Matches the struct in GetCanvasSectionData.cdc
-interface BasicPixelInfoFromScript {
-	x: number; // Cadence UInt16 becomes number
-	y: number; // Cadence UInt16 becomes number
-	isTaken: boolean;
-	nftId: string | null; // Cadence UInt64? becomes string | null (or number | null if FCL handles it that way)
-}
-
 export function useCanvasSectionData(params: CanvasSectionParams | null) {
 	const {
 		data: selectedData,
@@ -482,35 +475,18 @@ export function useCanvasSectionData(params: CanvasSectionParams | null) {
 			enabled: !!params,
 			staleTime: 10000,
 			select: (rawQueryData: unknown): PixelData[] | null => {
-				const rawScriptOutput = rawQueryData as
-					| BasicPixelInfoFromScript[]
-					| null;
-				if (!rawScriptOutput) return null;
 				if (!params) return null;
 
-				const pixels: PixelData[] = rawScriptOutput.map((basicPixel) => ({
-					id: basicPixel.nftId
-						? parseInt(basicPixel.nftId, 10)
-						: -(basicPixel.y * (params.width || 0) + basicPixel.x + 1),
-					x: basicPixel.x,
-					y: basicPixel.y,
-					isTaken: basicPixel.isTaken,
-					nftId: basicPixel.nftId ? String(basicPixel.nftId) : null,
-					ownerId: null,
-					imageURL: null,
-					prompt: null,
-					style: null,
-					price: null,
-					isListed: false,
-					listingId: null,
-				}));
-				return pixels;
+				const rawScriptOutput = rawQueryData as PixelOnChainData[];
+				if (!rawScriptOutput) return null;
+
+				return rawScriptOutput;
 			},
 		},
 	});
 
 	return {
-		data: selectedData as PixelData[] | null,
+		data: selectedData as PixelOnChainData[] | null,
 		isLoading,
 		error: queryError,
 		refetch,

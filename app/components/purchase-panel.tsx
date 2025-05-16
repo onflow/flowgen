@@ -5,16 +5,11 @@ import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
-import { useAcquirePixelSpace } from "../../lib/pixel-hooks";
+import { useAcquirePixelSpace } from "../hooks/pixel-hooks";
+import { PixelOnChainData } from "@/lib/pixel-types";
 
 type PurchasePanelProps = {
-	selectedSpace: {
-		id: number;
-		x: number;
-		y: number;
-		owner: string | null;
-		image: string | null;
-	} | null;
+	selectedSpace: PixelOnChainData | null;
 	currentPrice: number;
 	onCancel: () => void;
 	onPixelPurchased: (pixel: {
@@ -207,7 +202,7 @@ export default function PurchasePanel({
 				</p>
 			</div>
 		);
-	} else if (selectedSpace.owner === user?.addr) {
+	} /* else if (selectedSpace.ownerId === user?.addr) {
 		return (
 			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
 				<h3 className="text-lg font-medium mb-1">You already own this space</h3>
@@ -229,7 +224,7 @@ export default function PurchasePanel({
 				</div>
 			</div>
 		);
-	}
+	} */
 
 	if (!user.loggedIn) {
 		return (
@@ -247,7 +242,9 @@ export default function PurchasePanel({
 
 	return (
 		<div className="dark:text-gray-200">
-			<h2 className="text-xl font-bold mb-4">Purchase this Space</h2>
+			<h2 className="text-xl font-bold mb-4">
+				{selectedSpace.isTaken ? "This space is taken" : "Purchase this Space"}
+			</h2>
 			<div className="mb-4">
 				<div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-4 rounded-lg text-center">
 					<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
@@ -293,13 +290,10 @@ export default function PurchasePanel({
 					<span>Price per cell</span>
 					<span className="font-medium">{currentPrice.toFixed(2)} FLOW</span>
 				</div>
-				<div className="flex justify-between mb-2 border-b border-blue-100 dark:border-gray-700 pb-2 text-gray-800 dark:text-gray-300">
-					<span>Network fee</span>
-					<span className="font-medium">0.01 FLOW</span>
-				</div>
+
 				<div className="flex justify-between font-bold mt-2 text-gray-900 dark:text-gray-100">
 					<span>Total</span>
-					<span>{(currentPrice + 0.01).toFixed(2)} FLOW</span>
+					<span>{currentPrice.toFixed(2)} FLOW</span>
 				</div>
 			</div>
 
@@ -318,7 +312,9 @@ export default function PurchasePanel({
 							: ""
 					}`}
 					onClick={handleGenerate}
-					disabled={isGenerating || isSubmitting || !prompt}
+					disabled={
+						selectedSpace.isTaken || isGenerating || isSubmitting || !prompt
+					}
 				>
 					{isGenerating ? (
 						<span>Generating...</span>

@@ -5,8 +5,11 @@ import Header from "./header";
 import PixelGrid from "./pixel-grid";
 import PurchasePanel from "./purchase-panel";
 import { useCurrentFlowUser } from "@onflow/kit";
-import { PixelData, CanvasOverview } from "@/lib/pixel-types";
-import { useCanvasOverview, useCanvasSectionData } from "@/lib/pixel-hooks";
+import { PixelData, CanvasOverview, PixelOnChainData } from "@/lib/pixel-types";
+import {
+	useCanvasOverview,
+	useCanvasSectionData,
+} from "@/app/hooks/pixel-hooks";
 
 // Define CanvasSectionParams interface if not already imported from pixel-hooks
 // (Assuming it's not exported from pixel-hooks.ts, so defining locally or importing if it is)
@@ -17,10 +20,12 @@ interface CanvasSectionParams {
 	height: number;
 }
 
-const DEFAULT_GRID_SIZE = 20;
+const DEFAULT_GRID_SIZE = 16;
 
 export default function AIPixelCanvas() {
-	const [selectedSpace, setSelectedSpace] = useState<PixelData | null>(null);
+	const [selectedSpace, setSelectedSpace] = useState<PixelOnChainData | null>(
+		null
+	);
 	const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE);
 
 	const {
@@ -67,53 +72,19 @@ export default function AIPixelCanvas() {
 		}
 	}, [fetchCanvasOverview, refetchPixelData, gridParams]);
 
-	const fullGridPixels: PixelData[] = [];
-	if (!isSectionLoading && !isOverviewLoading && pixelsData && gridParams) {
-		for (let y = 0; y < gridParams.height; y++) {
-			for (let x = 0; x < gridParams.width; x++) {
-				const dbPixel = pixelsData.find((p) => p.x === x && p.y === y);
-				if (dbPixel) {
-					fullGridPixels.push(dbPixel);
-				} else {
-					fullGridPixels.push({
-						id: -(y * gridParams.width + x + 1),
-						x,
-						y,
-						isTaken: false,
-						ownerId: null,
-						nftId: null,
-						imageURL: null,
-						prompt: null,
-						style: null,
-						price: null,
-						isListed: false,
-						listingId: null,
-					});
-				}
-			}
-		}
-	}
-
 	type PixelGridCell = {
 		id: number;
 		x: number;
 		y: number;
+		isTaken: boolean;
+		nftId: string | null;
 		owner: string | null;
 		image: string | null;
 		originalPixelData: PixelData;
 	};
 
-	const transformedGridData: PixelGridCell[] = fullGridPixels.map((p) => ({
-		id: p.id!,
-		x: p.x,
-		y: p.y,
-		owner: p.ownerId || null,
-		image: p.imageURL || null,
-		originalPixelData: p,
-	}));
-
-	const handleCellClick = (cell: PixelGridCell) => {
-		const originalPixel = cell.originalPixelData;
+	const handleCellClick = (cell: PixelOnChainData) => {
+		const originalPixel = cell;
 		if (!originalPixel.isTaken) {
 			setSelectedSpace(originalPixel);
 		} else {
@@ -143,7 +114,7 @@ export default function AIPixelCanvas() {
 			<main className="flex flex-1 overflow-hidden">
 				<PixelGrid
 					gridSize={gridSize}
-					gridData={transformedGridData}
+					gridData={pixelsData || []}
 					onCellClick={handleCellClick}
 					soldPercentage={
 						canvasOverview
@@ -155,17 +126,7 @@ export default function AIPixelCanvas() {
 
 				<div className="w-96 bg-gray-50 dark:bg-gray-800 p-6 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
 					<PurchasePanel
-						selectedSpace={
-							selectedSpace
-								? {
-										id: selectedSpace.id!,
-										x: selectedSpace.x,
-										y: selectedSpace.y,
-										owner: selectedSpace.ownerId || null,
-										image: selectedSpace.imageURL || null,
-								  }
-								: null
-						}
+						selectedSpace={selectedSpace}
 						currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}
 						onCancel={() => setSelectedSpace(null)}
 						onPixelPurchased={handlePurchaseSuccess}

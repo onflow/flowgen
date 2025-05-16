@@ -1,0 +1,72 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Flow/Cadence Development Rules & Best Practices (for Cursor/React)
+
+This document summarizes key learnings and common patterns for developing Flow blockchain applications using Cadence, FCL, and `@onflow/kit` within a React/Next.js environment, particularly aimed at avoiding common pitfalls.
+
+## 1. Cadence Script/Transaction Imports in Frontend
+
+*   **Raw Imports for Cadence Files:**
+    *   Configure your build system (e.g., Next.js via `next.config.js` webpack adjustments) to allow raw import of `.cdc` files as strings.
+        ```javascript
+        // next.config.js example snippet
+        config.module.rules.push({
+          test: /\.cdc$/,
+          use: 'raw-loader',
+        });
+        ```
+    *   Use aliased paths for consistency if your project uses them (e.g., `@/cadence/...`).
+        ```typescript
+        import MY_TRANSACTION_CDC from "@/cadence/transactions/my_transaction.cdc";
+        import MY_SCRIPT_CDC from "@/cadence/scripts/my_script.cdc";
+        ```
+
+## 2. FCL Configuration & Contract Address Resolution
+
+*   **`flow.json` is Key:** FCL (and `@onflow/kit`) relies heavily on `flow.json` to resolve contract import strings (e.g., `import "MyContract"`) in scripts and transactions to deployed addresses on the current network.
+*   **Structure:**
+    *   Ensure `contracts` section lists your contracts.
+    *   Ensure `deployments` section correctly maps contract names to the deployer account name for each network (emulator, testnet, mainnet).
+    *   Ensure `accounts` section has the correct addresses for these deployer accounts.
+*   **Provider Setup:** When using `@onflow/kit`'s `FlowProvider` or `fcl.config()`, make sure it's loaded with the correct `flow.json` content and the correct `accessNode.api` for the target network.
+    ```typescript
+    // Example: FlowProvider setup
+    import flowJSONFile from "../../../flow.json"; // Adjust path
+
+    <FlowProvider
+      flowJson={flowJSONFile}
+      config={{
+        accessNodeUrl: "http://localhost:8888", // For emulator
+        // ... other FCL config
+      }}
+    >
+      <App />
+    </FlowProvider>
+    ```
+*   **Error Indication:** If you see errors like `[Error Code: 1054] location (ContractName) is not a valid location` or `cannot find variable in this scope: ContractName` in Cadence runtime errors, it's almost always an FCL configuration issue related to `flow.json` not resolving the import string to an address.
+
+## 5. Using `@onflow/kit` Hooks
+
+*   **`useFlowQuery`:**
+    *   Provide the Cadence script string directly.
+    *   Use the `args` option for parameterized scripts: `args: (arg, t) => [arg(myVal, t.UInt64)]`.
+    *   Use the `query.select` option to transform/parse raw Cadence script results (e.g., string numbers to JS numbers, map structs) into your desired client-side types.
+    *   `useFlowQuery` may expect 0 or 1 generic type arguments (for the *raw script return type* or the *selected data type*). Check linter errors. If it expects 0, cast the input to `select` if it's `unknown`.
+    *   To make it re-run when parameters change, pass those parameters to the hook and use them in the `args` function and/or `query.enabled` option.
+*   **`useFlowMutate`:**
+    *   Destructure its return correctly: `const { mutate, isPending, error, data: txId } = useFlowMutate();`.
+    *   `mutate` is an async function that takes an object with `cadence`, `args`, `limit`, etc.
+    *   The `data` property (`txId`) will contain the transaction ID once `mutate` resolves.
+
+## 6. Debugging Tips
+
+*   **Browser Console:** Log Cadence script content and arguments from your frontend hooks before sending.
+*   **Emulator Logs:** Add detailed `log("DEBUG: ...")` statements in your Cadence scripts and transactions (especially in `prepare` phases) to trace execution flow and check variable values on the emulator side.
+*   **Flow CLI:**
+    *   Use `flow scripts execute path/to/script.cdc --network emulator --arg Type:Value` to test scripts independently.
+    *   Check `flow.json` for correct contract aliases and deployment addresses.
+
+This MD file provides a good starting point. You can expand it with more specific examples or project conventions as you continue development.

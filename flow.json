@@ -99,9 +99,7 @@
 	},
 	"deployments": {
 		"emulator": {
-			"emulator-account": [
-				"FooBar"
-			]
+			"emulator-account": ["FooBar", "FlowGenCanvas", "FlowGenPixel"]
 		}
 	}
 }

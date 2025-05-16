@@ -5,7 +5,7 @@ import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
-import { acquirePixelSpace } from "../../lib/pixel-api";
+import { useAcquirePixelSpace } from "../../lib/pixel-hooks";
 
 type PurchasePanelProps = {
 	selectedSpace: {
@@ -35,11 +35,17 @@ export default function PurchasePanel({
 	onPurchaseSuccess,
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
-	const [style, setStyle] = useState("Photorealistic");
+	const [style, setStyle] = useState("pixel-art");
+	const [imageURL, setImageURL] = useState("");
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-
 	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
+
+	const {
+		acquire,
+		isLoading: isAcquiringPixel,
+		error: acquirePixelError,
+	} = useAcquirePixelSpace();
 
 	const handleGenerate = async () => {
 		if (!selectedSpace || !user.loggedIn || !user.addr) {
@@ -48,7 +54,6 @@ export default function PurchasePanel({
 			);
 			return;
 		}
-
 
 		let imageURL = "";
 		await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -128,25 +133,25 @@ export default function PurchasePanel({
 					arg(imageURL, t.String),
 					arg(imageURL, t.String),
 					arg(`hash-${Date.now()}`, t.String),
-					arg((currentPrice + 0.01).toFixed(8), t.UFix64)
+					arg((currentPrice + 0.01).toFixed(8), t.UFix64),
 				],
-				limit: 999
+				limit: 999,
 			});
 
 			// 3. Monitor transaction
-			fcl.tx(transactionId).subscribe(transaction => {
-				if (transaction.status === 4) { // status 4 is Sealed
+			fcl.tx(transactionId).subscribe((transaction) => {
+				if (transaction.status === 4) {
+					// status 4 is Sealed
 					const newPixel = {
 						...selectedSpace,
 						owner: user?.addr || null,
-						image: imageURL
+						image: imageURL,
 					};
 					onPixelPurchased(newPixel);
 					setIsGenerating(false);
 					setIsSubmitting(false);
 				}
 			});
-
 		} catch (error) {
 			console.error("Error simulating image generation:", error);
 			setIsGenerating(false);
@@ -165,7 +170,7 @@ export default function PurchasePanel({
 			};
 
 			console.log("Attempting to acquire pixel space with data:", purchaseData);
-			const result = await acquirePixelSpace(
+			const result = await acquire(
 				purchaseData.x,
 				purchaseData.y,
 				purchaseData.prompt,
@@ -180,6 +185,11 @@ export default function PurchasePanel({
 					"Pixel space acquired successfully. Pixel ID:",
 					result.pixelId
 				);
+				onPixelPurchased({
+					...selectedSpace,
+					owner: user.addr,
+					image: imageURL,
+				});
 				onPurchaseSuccess();
 			} else {
 				console.error("Failed to acquire pixel space:", result.error);
@@ -214,7 +224,13 @@ export default function PurchasePanel({
 				<div className="mb-4">
 					<div className="bg-white border border-gray-300 p-4 rounded-lg text-center">
 						<div className="text-6xl mb-2 text-gray-400">
-							<img src={selectedSpace.image || ''} alt="Selected space" width={64} height={64} className="mx-auto h-16 w-16" />
+							<img
+								src={selectedSpace.image || ""}
+								alt="Selected space"
+								width={64}
+								height={64}
+								className="mx-auto h-16 w-16"
+							/>
 						</div>
 						<p className="text-sm text-gray-500">
 							Position: ({selectedSpace.x}, {selectedSpace.y})
@@ -306,10 +322,11 @@ export default function PurchasePanel({
 					Cancel
 				</button>
 				<button
-					className={`bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${isGenerating || isSubmitting || !prompt
-						? "opacity-50 cursor-not-allowed dark:opacity-60"
-						: ""
-						}`}
+					className={`bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${
+						isGenerating || isSubmitting || !prompt
+							? "opacity-50 cursor-not-allowed dark:opacity-60"
+							: ""
+					}`}
 					onClick={handleGenerate}
 					disabled={isGenerating || isSubmitting || !prompt}
 				>

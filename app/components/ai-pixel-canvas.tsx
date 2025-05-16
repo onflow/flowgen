@@ -152,6 +152,7 @@ export default function AIPixelCanvas() {
 					gridSize={gridSize}
 					gridData={transformedGridData}
 					onCellClick={handleCellClick}
+					selectedSpace={selectedSpace}
 					soldPercentage={
 						canvasOverview
 							? canvasOverview.soldPixels / canvasOverview.totalPixels

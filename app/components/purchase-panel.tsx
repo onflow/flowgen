@@ -223,6 +223,18 @@ export default function PurchasePanel({
 				</div>
 			</div>
 		);
+	} else if (selectedSpace.owner) {
+		return (
+			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
+				<h3 className="text-lg font-medium mb-1">This space is already owned by {selectedSpace.owner}</h3>
+				<div className="text-6xl mb-2 text-gray-400">
+					<img src={selectedSpace.image || ''} alt="Selected space" width={64} height={64} className="mx-auto h-16 w-16" />
+				</div>
+				<p className="text-sm text-gray-500">
+					Position: ({selectedSpace.x}, {selectedSpace.y})
+				</p>
+			</div>
+		);
 	}
 
 	if (!user.loggedIn) {

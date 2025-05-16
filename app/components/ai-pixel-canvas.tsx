@@ -8,6 +8,15 @@ import { useCurrentFlowUser } from "@onflow/kit";
 import { PixelData, CanvasOverview } from "@/lib/pixel-types";
 import { useCanvasOverview, useCanvasSectionData } from "@/lib/pixel-hooks";
 
+// Define CanvasSectionParams interface if not already imported from pixel-hooks
+// (Assuming it's not exported from pixel-hooks.ts, so defining locally or importing if it is)
+interface CanvasSectionParams {
+	startX: number;
+	startY: number;
+	width: number;
+	height: number;
+}
+
 const DEFAULT_GRID_SIZE = 20;
 
 export default function AIPixelCanvas() {
@@ -21,44 +30,53 @@ export default function AIPixelCanvas() {
 		refetch: fetchCanvasOverview,
 	} = useCanvasOverview();
 
-	const {
-		data: pixelsData,
-		isLoading: isSectionLoading,
-		error: sectionError,
-		fetchSection: fetchPixelData,
-	} = useCanvasSectionData({
-		startX: 0,
-		startY: 0,
-		width: gridSize,
-		height: gridSize,
-	});
+	// State for grid parameters, passed to useCanvasSectionData
+	const [gridParams, setGridParams] = useState<CanvasSectionParams | null>(
+		null
+	);
 
 	useEffect(() => {
-		fetchPixelData({ startX: 0, startY: 0, width: gridSize, height: gridSize });
-	}, [gridSize, fetchPixelData]);
-
-	const handlePurchaseSuccess = useCallback(async () => {
-		console.log("Purchase successful, refreshing canvas data...");
-		setSelectedSpace(null);
-		await fetchCanvasOverview();
-		await fetchPixelData({
+		// Initialize gridParams or update them when gridSize changes
+		setGridParams({
 			startX: 0,
 			startY: 0,
 			width: gridSize,
 			height: gridSize,
 		});
-	}, [fetchCanvasOverview, fetchPixelData, gridSize]);
+	}, [gridSize]);
+
+	const {
+		data: pixelsData,
+		isLoading: isSectionLoading,
+		error: sectionError,
+		refetch: refetchPixelData,
+	} = useCanvasSectionData(gridParams);
+
+	useEffect(() => {
+		if (gridParams) {
+			refetchPixelData();
+		}
+	}, [gridParams, refetchPixelData]);
+
+	const handlePurchaseSuccess = useCallback(async () => {
+		console.log("Purchase successful, refreshing canvas data...");
+		setSelectedSpace(null);
+		await fetchCanvasOverview();
+		if (gridParams) {
+			await refetchPixelData();
+		}
+	}, [fetchCanvasOverview, refetchPixelData, gridParams]);
 
 	const fullGridPixels: PixelData[] = [];
-	if (!isSectionLoading && !isOverviewLoading && pixelsData) {
-		for (let y = 0; y < gridSize; y++) {
-			for (let x = 0; x < gridSize; x++) {
+	if (!isSectionLoading && !isOverviewLoading && pixelsData && gridParams) {
+		for (let y = 0; y < gridParams.height; y++) {
+			for (let x = 0; x < gridParams.width; x++) {
 				const dbPixel = pixelsData.find((p) => p.x === x && p.y === y);
 				if (dbPixel) {
 					fullGridPixels.push(dbPixel);
 				} else {
 					fullGridPixels.push({
-						id: -(y * gridSize + x + 1),
+						id: -(y * gridParams.width + x + 1),
 						x,
 						y,
 						isTaken: false,

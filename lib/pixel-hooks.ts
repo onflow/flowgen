@@ -25,8 +25,8 @@ import * as fcl from "@onflow/fcl";
 
 // Import the Cadence script as a raw string
 import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
-import GET_CANVAS_OVERVIEW_CDC from "../../cadence/scripts/GetCanvasOverview.cdc";
-import GET_CANVAS_SECTION_DATA_CDC from "../../cadence/scripts/GetCanvasSectionData.cdc";
+import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc";
+import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
 
 // TODO: These should come from a configuration file or environment variables
 const DEFAULT_FEE_RECEIVER_ADDRESS = "0xSERVICEACCOUNT"; // Replace with actual service/fee account address
@@ -440,62 +440,73 @@ export function useCheckPixelBlockAvailability() {
 	return { checkAvailability, data, isLoading, error };
 }
 
-// Hook for getting canvas section data
-export function useCanvasSectionData(initialData?: {
+// Types for useCanvasSectionData
+interface CanvasSectionParams {
 	startX: number;
 	startY: number;
 	width: number;
 	height: number;
-}) {
-	const [data, setData] = useState<PixelData[] | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<Error | null>(null);
+}
 
-	const fetchSectionData = useCallback(
-		async (section: {
-			startX: number;
-			startY: number;
-			width: number;
-			height: number;
-		}) => {
-			setIsLoading(true);
-			setError(null);
-			try {
-				const sectionPixelData = await getCanvasSectionData(section);
-				setData(sectionPixelData);
-			} catch (e) {
-				setError(e as Error);
-			} finally {
-				setIsLoading(false);
-			}
+// Matches the struct in GetCanvasSectionData.cdc
+interface BasicPixelInfoFromScript {
+	x: number; // Cadence UInt16 becomes number
+	y: number; // Cadence UInt16 becomes number
+	isTaken: boolean;
+	nftId: string | null; // Cadence UInt64? becomes string | null (or number | null if FCL handles it that way)
+}
+
+export function useCanvasSectionData(params: CanvasSectionParams | null) {
+	const {
+		data: selectedData,
+		isLoading,
+		error: queryError,
+		refetch,
+	} = useFlowQuery({
+		cadence: GET_CANVAS_SECTION_DATA_CDC,
+		args: params
+			? (arg: any, t: any) => [
+					arg(params.startX, t.UInt16),
+					arg(params.startY, t.UInt16),
+					arg(params.width, t.UInt16),
+					arg(params.height, t.UInt16),
+			  ]
+			: () => [],
+		query: {
+			enabled: !!params,
+			staleTime: 10000,
+			select: (rawQueryData: unknown): PixelData[] | null => {
+				const rawScriptOutput = rawQueryData as
+					| BasicPixelInfoFromScript[]
+					| null;
+				if (!rawScriptOutput) return null;
+				if (!params) return null;
+
+				const pixels: PixelData[] = rawScriptOutput.map((basicPixel) => ({
+					id: basicPixel.nftId
+						? parseInt(basicPixel.nftId, 10)
+						: -(basicPixel.y * (params.width || 0) + basicPixel.x + 1),
+					x: basicPixel.x,
+					y: basicPixel.y,
+					isTaken: basicPixel.isTaken,
+					nftId: basicPixel.nftId ? String(basicPixel.nftId) : null,
+					ownerId: null,
+					imageURL: null,
+					prompt: null,
+					style: null,
+					price: null,
+					isListed: false,
+					listingId: null,
+				}));
+				return pixels;
+			},
 		},
-		[]
-	);
+	});
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-	useEffect(() => {
-		if (initialData) {
-			fetchSectionData(initialData);
-		}
-	}, [
-		fetchSectionData,
-		initialData?.startX,
-		initialData?.startY,
-		initialData?.width,
-		initialData?.height,
-	]);
-
-	const getSection = useCallback(
-		async (section: {
-			startX: number;
-			startY: number;
-			width: number;
-			height: number;
-		}) => {
-			await fetchSectionData(section);
-		},
-		[fetchSectionData]
-	);
-
-	return { data, isLoading, error, fetchSection: getSection };
+	return {
+		data: selectedData as PixelData[] | null,
+		isLoading,
+		error: queryError,
+		refetch,
+	};
 }

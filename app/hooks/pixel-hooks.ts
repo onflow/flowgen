@@ -20,7 +20,7 @@ import {
 } from "../../lib/pixel-types";
 import { acquirePixelSpaceServerAction } from "../actions/canvas-actions"; // Import server action directly
 
-import { useFlowMutate, useFlowQuery } from "@onflow/kit";
+import { useFlowMutate, useFlowQuery, useFlowTransaction } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
 // import { arg, ArgumentFunction } from "@onflow/fcl"; // ArgumentFunction type might not be directly exported or needed with `any`
 
@@ -78,7 +78,9 @@ export function useAcquirePixelSpace() {
 		data: txIdFromHookData, // This will hold the txId after mutate() resolves
 	} = useFlowMutate();
 
-	//const { transactionStatus, error } = useFlowTransaction({ id: txIdFromHookData })
+	const { transactionStatus, error } = useFlowTransaction({
+		id: txIdFromHookData || "",
+	});
 
 	const [isLoadingBackend, setIsLoadingBackend] = useState(false);
 	const [combinedError, setCombinedError] = useState<Error | null>(null);

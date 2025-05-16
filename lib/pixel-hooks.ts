@@ -16,8 +16,6 @@ import {
 	PixelSpaceResult,
 	PixelMarketResult,
 	CanvasOverview,
-	CanvasOverviewResponse,
-	// PixelMarketListing, // Not directly used in this file after changes
 } from "./pixel-types";
 import { acquirePixelSpaceServerAction } from "../app/actions/canvas-actions"; // Import server action directly
 

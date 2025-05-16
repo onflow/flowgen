@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
 	initializeUserProfile,
-	acquirePixelSpace,
+	// acquirePixelSpace, // Original API call, direct server action call will be used by the hook
 	getCanvasOverview,
 	getPixelDetails,
 	listPixelOnMarket,
@@ -15,8 +15,20 @@ import {
 	PixelData,
 	PixelSpaceResult,
 	PixelMarketResult,
-	PixelMarketListing,
-} from "./pixel-types"; // Assuming pixel-types is in the same directory or adjust path
+	// PixelMarketListing, // Not directly used in this file after changes
+} from "./pixel-types";
+import { acquirePixelSpaceServerAction } from "../app/actions/canvas-actions"; // Import server action directly
+
+import { useFlowMutate, useFlowTransaction } from "@onflow/kit";
+import * as fcl from "@onflow/fcl";
+// import { arg, ArgumentFunction } from "@onflow/fcl"; // ArgumentFunction type might not be directly exported or needed with `any`
+
+// Import the Cadence script as a raw string
+import PURCHASE_PIXEL_CADENCE from "../../cadence/transactions/PurchasePixel.cdc";
+
+// TODO: These should come from a configuration file or environment variables
+const DEFAULT_FEE_RECEIVER_ADDRESS = "0xSERVICEACCOUNT"; // Replace with actual service/fee account address
+const DEFAULT_ROYALTY_RATE = "0.05000000"; // 5% royalty rate as UFix64
 
 // Hook for initializing user profile
 export function useInitializeUserProfile() {
@@ -38,48 +50,162 @@ export function useInitializeUserProfile() {
 	return { initialize, isLoading, error };
 }
 
-// Hook for acquiring pixel space
+interface AcquirePixelParams {
+	x: number;
+	y: number;
+	prompt: string; // Used for AI prompt and Cadence description/aiPrompt
+	style: string; // For backend
+	imageURL: string; // For backend & Cadence thumbnail/imageURI/pixelArtURI
+	flowPaymentAmount: string; // UFix64 string for Cadence paymentAmount
+	backendPaymentAmount: number; // For backend server action
+	userId: string; // User's Flow address, for Cadence creatorAddress & backend ownerId
+
+	// Optional: Allow overriding if these constants aren't sufficient for some edge case
+	feeReceiverAddress?: string;
+	royaltyRate?: string;
+}
+
+// Hook for acquiring pixel space (with Flow transaction)
 export function useAcquirePixelSpace() {
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<Error | null>(null);
-	const [data, setData] = useState<PixelSpaceResult | null>(null);
+	const {
+		mutate,
+		isPending: isFlowMutating,
+		error: flowErrorFromHook,
+		data: txIdFromHookData, // This will hold the txId after mutate() resolves
+	} = useFlowMutate();
+
+	//const { transactionStatus, error } = useFlowTransaction({ id: txIdFromHookData })
+
+	const [isLoadingBackend, setIsLoadingBackend] = useState(false);
+	const [combinedError, setCombinedError] = useState<Error | null>(null);
+	const [backendData, setBackendData] = useState<PixelSpaceResult | null>(null);
 
 	const acquire = useCallback(
-		async (
-			x: number,
-			y: number,
-			prompt: string,
-			style: string,
-			imageURL: string,
-			paymentAmount: number,
-			userId: string
-		) => {
-			setIsLoading(true);
-			setError(null);
+		async ({
+			x,
+			y,
+			prompt,
+			style,
+			imageURL,
+			flowPaymentAmount,
+			backendPaymentAmount,
+			userId,
+			feeReceiverAddress = DEFAULT_FEE_RECEIVER_ADDRESS,
+			royaltyRate = DEFAULT_ROYALTY_RATE,
+		}: AcquirePixelParams): Promise<PixelSpaceResult> => {
+			setIsLoadingBackend(false);
+			setCombinedError(null);
+			setBackendData(null);
+
 			try {
-				const result = await acquirePixelSpace(
+				console.log("Executing Flow transaction for pixel purchase...");
+
+				const finalPixelName = `Pixel Art #${x}-${y}`;
+				const finalDescription = prompt;
+				const finalThumbnailURL = imageURL;
+				const finalAiCadencePrompt = prompt;
+				const finalImageURI = imageURL;
+				const finalPixelArtURI = imageURL;
+				const finalImageHash = `image-hash-${Date.now()}`;
+
+				const args = (arg: any, t: any): any[] => {
+					const scriptArgs = [
+						arg(x, t.UInt16),
+						arg(y, t.UInt16),
+						arg(finalPixelName, t.String),
+						arg(finalDescription, t.String),
+						arg(finalThumbnailURL, t.String),
+						arg(finalAiCadencePrompt, t.String),
+						arg(finalImageURI, t.String),
+						arg(finalPixelArtURI, t.String),
+						arg(finalImageHash, t.String),
+						arg(flowPaymentAmount, t.UFix64),
+						arg(userId, t.Address), // creatorAddress
+						arg(royaltyRate, t.UFix64),
+						arg(feeReceiverAddress, t.Address),
+					];
+					return scriptArgs;
+				};
+
+				mutate({
+					cadence: PURCHASE_PIXEL_CADENCE,
+					args: args,
+					limit: 999,
+				});
+				/* 
+				console.log(
+					"Flow transaction submitted with ID:",
+					txId,
+					"(Hook data txId:",
+					txIdFromHookData,
+					")"
+				);
+
+				await fcl.tx(txId).onceSealed();
+				console.log("Flow transaction sealed successfully.");
+ */
+				setIsLoadingBackend(true);
+				const backendResultData = await acquirePixelSpaceServerAction({
 					x,
 					y,
 					prompt,
 					style,
 					imageURL,
-					paymentAmount,
-					userId
-				);
-				setData(result);
-				return result;
-			} catch (e) {
-				setError(e as Error);
-				setData(null);
+					paymentAmount: backendPaymentAmount,
+					userId,
+				});
+				setBackendData(backendResultData);
+
+				if (!backendResultData.success) {
+					console.error(
+						"Backend error after Flow success:",
+						backendResultData.error
+					);
+					setCombinedError(
+						new Error(
+							backendResultData.error || "Backend failed to record pixel."
+						)
+					);
+				}
+				return backendResultData;
+			} catch (e: unknown) {
+				console.error("Error in acquire process:", e);
+				const caughtError = e as any;
+				if (caughtError && (caughtError.message || caughtError.errorMessage)) {
+					setCombinedError(
+						new Error(caughtError.message || caughtError.errorMessage)
+					);
+				} else if (e instanceof Error) {
+					setCombinedError(e);
+				} else {
+					setCombinedError(
+						new Error("An unknown error occurred during pixel acquisition.")
+					);
+				}
+				setBackendData(null);
 				throw e;
 			} finally {
-				setIsLoading(false);
+				setIsLoadingBackend(false);
 			}
 		},
-		[]
+		[mutate, txIdFromHookData]
 	);
 
-	return { acquire, data, isLoading, error };
+	// Determine overall error to display, prioritizing Flow error if it exists
+	const displayError = flowErrorFromHook
+		? new Error(flowErrorFromHook.message || "Flow transaction failed")
+		: combinedError;
+
+	return {
+		acquire,
+		data: backendData, // This is the result from the backend
+		isLoading: isFlowMutating || isLoadingBackend,
+		error: displayError,
+		isFlowMutating,
+		isBackendLoading: isLoadingBackend,
+		flowError: flowErrorFromHook,
+		txId: txIdFromHookData, // Expose the txId from the hook's data state
+	};
 }
 
 // Hook for getting canvas overview
@@ -275,11 +401,11 @@ export function useCheckPixelBlockAvailability() {
 			try {
 				const result = await checkPixelBlockAvailability(blockData);
 				setData(result);
-				return result; // Return the result for immediate use if needed
+				return result;
 			} catch (e) {
 				setError(e as Error);
-				setData(null); // Clear data on error
-				throw e; // Re-throw error for the caller to handle
+				setData(null);
+				throw e;
 			} finally {
 				setIsLoading(false);
 			}
@@ -333,9 +459,8 @@ export function useCanvasSectionData(initialData?: {
 		initialData?.startY,
 		initialData?.width,
 		initialData?.height,
-	]); // Dependencies need to be primitive for stability if initialData is an object literal
+	]);
 
-	// Allow manual fetching
 	const getSection = useCallback(
 		async (section: {
 			startX: number;

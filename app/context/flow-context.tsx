@@ -24,7 +24,7 @@ const TESTNET_CONFIG: FlowConfig = {
 };
 const EMULATOR_CONFIG: FlowConfig = {
 	...APP_DETAILS,
-	accessNodeUrl: "http://localhost:8080",
+	accessNodeUrl: "http://localhost:8888",
 	flowNetwork: "emulator",
 	discoveryWallet: "https://fcl-discovery.onflow.org/emulator/authn",
 };

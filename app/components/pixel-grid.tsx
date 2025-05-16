@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
+import { PixelData } from "@/lib/pixel-types";
 
-type Pixel = {
-  id: number;
-  x: number;
-  y: number;
-  owner: string | null;
-  image: string | null;
-};
 
 type PixelGridProps = {
   gridSize: number;
@@ -20,6 +14,7 @@ type PixelGridProps = {
   onCellClick: (cell: any) => void;
   soldPercentage: number;
   currentPrice: number;
+  selectedSpace: PixelData | null;
 };
 
 export default function PixelGrid({
@@ -27,9 +22,9 @@ export default function PixelGrid({
   gridData,
   onCellClick,
   soldPercentage,
-  currentPrice
+  currentPrice,
+  selectedSpace,
 }: PixelGridProps) {
-  const [selectedPixel, setSelectedPixel] = useState<Pixel | null>(null);
 
   const handleCellClick = (cell: any) => {
     console.log("handleCellClick", cell);
@@ -50,7 +45,10 @@ export default function PixelGrid({
           {gridData.map((cell) => (
             <div
               key={cell.id}
-              className={`h-6 w-6 border border-gray-200 ${!cell.owner ? 'cursor-pointer hover:bg-blue-100' : ''}`}
+              className={`h-6 w-6 border ${cell.id === selectedSpace?.id
+                ? 'border-blue-500 border-2'
+                : 'border-gray-200'
+                } ${!cell.owner ? 'cursor-pointer hover:bg-blue-100' : ''}`}
               style={{
                 backgroundColor: cell.owner ? '#f0f0f0' : 'white',
                 backgroundImage: cell.image ? `url(${cell.image})` : 'none',

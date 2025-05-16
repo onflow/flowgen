@@ -24,7 +24,7 @@ import * as fcl from "@onflow/fcl";
 // import { arg, ArgumentFunction } from "@onflow/fcl"; // ArgumentFunction type might not be directly exported or needed with `any`
 
 // Import the Cadence script as a raw string
-import PURCHASE_PIXEL_CADENCE from "../../cadence/transactions/PurchasePixel.cdc";
+import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
 
 // TODO: These should come from a configuration file or environment variables
 const DEFAULT_FEE_RECEIVER_ADDRESS = "0xSERVICEACCOUNT"; // Replace with actual service/fee account address

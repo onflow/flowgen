@@ -15,16 +15,20 @@ import {
 	PixelData,
 	PixelSpaceResult,
 	PixelMarketResult,
+	CanvasOverview,
+	CanvasOverviewResponse,
 	// PixelMarketListing, // Not directly used in this file after changes
 } from "./pixel-types";
 import { acquirePixelSpaceServerAction } from "../app/actions/canvas-actions"; // Import server action directly
 
-import { useFlowMutate, useFlowTransaction } from "@onflow/kit";
+import { useFlowMutate, useFlowQuery } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
 // import { arg, ArgumentFunction } from "@onflow/fcl"; // ArgumentFunction type might not be directly exported or needed with `any`
 
 // Import the Cadence script as a raw string
 import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
+import GET_CANVAS_OVERVIEW_CDC from "../../cadence/scripts/GetCanvasOverview.cdc";
+import GET_CANVAS_SECTION_DATA_CDC from "../../cadence/scripts/GetCanvasSectionData.cdc";
 
 // TODO: These should come from a configuration file or environment variables
 const DEFAULT_FEE_RECEIVER_ADDRESS = "0xSERVICEACCOUNT"; // Replace with actual service/fee account address
@@ -63,6 +67,7 @@ interface AcquirePixelParams {
 	// Optional: Allow overriding if these constants aren't sufficient for some edge case
 	feeReceiverAddress?: string;
 	royaltyRate?: string;
+	pixelContractAdminAddress?: string;
 }
 
 // Hook for acquiring pixel space (with Flow transaction)
@@ -92,6 +97,7 @@ export function useAcquirePixelSpace() {
 			userId,
 			feeReceiverAddress = DEFAULT_FEE_RECEIVER_ADDRESS,
 			royaltyRate = DEFAULT_ROYALTY_RATE,
+			pixelContractAdminAddress,
 		}: AcquirePixelParams): Promise<PixelSpaceResult> => {
 			setIsLoadingBackend(false);
 			setCombinedError(null);
@@ -208,36 +214,57 @@ export function useAcquirePixelSpace() {
 	};
 }
 
-// Hook for getting canvas overview
+// Hook for getting canvas overview using useFlowQuery
 export function useCanvasOverview() {
-	const [data, setData] = useState<{
-		resolution: string;
-		totalPixels: number;
-		soldPixels: number;
-		currentPrice: number;
-	} | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<Error | null>(null);
+	const {
+		data: transformedData, // This will be CanvasOverview | null after select
+		isLoading,
+		error: queryError,
+		refetch,
+	} = useFlowQuery({
+		// Type params: TQueryFnData, TError, TData (after select), TQueryKey
+		cadence: GET_CANVAS_OVERVIEW_CDC,
+		// No args for this script
+		query: {
+			staleTime: 30000, // Cache for 30 seconds
+			select: (rawData: any): CanvasOverview | null => {
+				if (!rawData) return null;
+				if (
+					rawData &&
+					typeof rawData.resolution === "string" &&
+					rawData.totalPixels !== null &&
+					rawData.totalPixels !== undefined &&
+					rawData.soldPixels !== null &&
+					rawData.soldPixels !== undefined &&
+					rawData.currentPrice !== null &&
+					rawData.currentPrice !== undefined
+				) {
+					return {
+						resolution: rawData.resolution,
+						totalPixels: parseInt(String(rawData.totalPixels), 10),
+						soldPixels: parseInt(String(rawData.soldPixels), 10),
+						currentPrice: parseFloat(String(rawData.currentPrice)),
+					};
+				} else {
+					console.error(
+						"Invalid data structure from GetCanvasOverview.cdc:",
+						rawData
+					);
+					// Throw an error that useFlowQuery will catch in its `error` state
+					throw new Error("Failed to parse canvas overview data from Flow.");
+				}
+			},
+		},
+	});
 
-	const fetchOverview = useCallback(async () => {
-		setIsLoading(true);
-		setError(null);
-		try {
-			const overviewData = await getCanvasOverview();
-			setData(overviewData);
-		} catch (e) {
-			setError(e as Error);
-		} finally {
-			setIsLoading(false);
-		}
-	}, []);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-	useEffect(() => {
-		fetchOverview();
-	}, [fetchOverview]); // fetchOverview is stable due to useCallback
-
-	return { data, isLoading, error, refetch: fetchOverview };
+	// If select throws an error, queryError will be populated.
+	// transformedData is the direct result from the select function.
+	return {
+		data: transformedData as CanvasOverview,
+		isLoading,
+		error: queryError,
+		refetch,
+	};
 }
 
 // Hook for getting pixel details
@@ -353,7 +380,7 @@ export function useUnlistPixelFromMarket() {
 	return { unlistPixel, data, isLoading, error };
 }
 
-// Hook for getting active market listings
+// Revert useActiveMarketListings to use the API function
 export function useActiveMarketListings() {
 	const [data, setData] = useState<PixelData[] | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
@@ -372,7 +399,6 @@ export function useActiveMarketListings() {
 		}
 	}, []);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	useEffect(() => {
 		fetchListings();
 	}, [fetchListings]);

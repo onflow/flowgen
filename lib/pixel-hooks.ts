@@ -28,8 +28,8 @@ import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
 import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc";
 import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
 
-// TODO: These should come from a configuration file or environment variables
-const DEFAULT_FEE_RECEIVER_ADDRESS = "0xSERVICEACCOUNT"; // Replace with actual service/fee account address
+// TODO: Replace placeholder addresses with actual configuration or environment variables
+const DEFAULT_FEE_RECEIVER_ADDRESS = "0xf8d6e0586b0a20c7"; // Example: Replace with your actual emulator service/fee account address
 const DEFAULT_ROYALTY_RATE = "0.05000000"; // 5% royalty rate as UFix64
 
 // Hook for initializing user profile
@@ -126,8 +126,14 @@ export function useAcquirePixelSpace() {
 						arg(flowPaymentAmount, t.UFix64),
 						arg(userId, t.Address), // creatorAddress
 						arg(royaltyRate, t.UFix64),
+						arg(pixelContractAdminAddress || userId, t.Address),
 						arg(feeReceiverAddress, t.Address),
 					];
+					console.log(
+						"Number of arguments being prepared for Cadence:",
+						scriptArgs.length
+					);
+					console.log("Cadence Arguments:", scriptArgs);
 					return scriptArgs;
 				};
 

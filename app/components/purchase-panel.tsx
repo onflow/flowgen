@@ -159,30 +159,15 @@ export default function PurchasePanel({
 		} */
 
 		try {
-			// This object is for local reference before calling the hook.
-			// const localPurchaseData = {
-			// 	x: selectedSpace.x,
-			// 	y: selectedSpace.y,
-			// 	prompt: prompt,
-			// 	style: style,
-			// 	imageURL: imageURL,
-			// 	backendPaymentAmount: currentPrice + 0.01,
-			// 	userId: user.addr,
-			// };
-
-			// console.log("Attempting to acquire pixel space with data for hook:", localPurchaseData);
-
-			// Call the hook with the correct object structure for AcquirePixelParams
 			const result = await acquire({
 				x: selectedSpace.x,
 				y: selectedSpace.y,
 				prompt: prompt,
 				style: style,
-				imageURL: imageURL, // The generated imageURL
-				flowPaymentAmount: (currentPrice + 0.01).toFixed(8), // Format as UFix64 string
+				imageURL: imageURL,
+				flowPaymentAmount: currentPrice.toFixed(8),
 				backendPaymentAmount: currentPrice + 0.01,
 				userId: user.addr,
-				// pixelContractAdminAddress: "0xADMIN", // Example: pass if needed, otherwise hook uses default
 			});
 
 			if (result.success) {

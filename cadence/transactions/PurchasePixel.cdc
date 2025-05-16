@@ -28,34 +28,59 @@ transaction(
     let feeReceiverCapOpt: Capability<&{FungibleToken.Receiver}>?
     let nftMinterRef: &FlowGenPixel.NFTMinter
 
-    prepare(buyerAcct: auth(BorrowValue, IssueStorageCapabilityController, PublishCapability, SaveValue, UnpublishCapability, Storage) &Account) {
+    prepare(buyerAcct: auth(Storage, Capabilities) &Account) { 
+        log("DEBUG: PurchasePixel.cdc V8 - Inside PREPARE (Corrected Collection Setup)") 
+
+        // Setup FlowGenPixel Collection if it doesn't exist
         if buyerAcct.storage.borrow<&FlowGenPixel.Collection>(from: FlowGenPixel.CollectionStoragePath) == nil {
-            panic("Buyer does not have a FlowGenPixel Collection. Please run setup transaction first.")
-        }
-        self.buyerPixelCollectionCapOpt = buyerAcct.capabilities.get<&{NonFungibleToken.Receiver}>(
-                FlowGenPixel.CollectionPublicPath
+            log("DEBUG: FlowGenPixel.Collection not found in storage. Creating and saving...")
+            buyerAcct.storage.save(
+                <-FlowGenPixel.createEmptyCollection(nftType: Type<@FlowGenPixel.NFT>()),
+                to: FlowGenPixel.CollectionStoragePath
             )
+            log("DEBUG: Saved new FlowGenPixel.Collection to storage.")
+            
+            let cap = buyerAcct.capabilities.storage.issue<&FlowGenPixel.Collection>(FlowGenPixel.CollectionStoragePath)
+            buyerAcct.capabilities.publish(cap, at: FlowGenPixel.CollectionPublicPath)
+
+            log("DEBUG: Linked/Published public capability for FlowGenPixel.Collection.")
+        } else {
+            log("DEBUG: FlowGenPixel.Collection already exists in storage.")
+        }
+
+        // Now, get the Receiver capability from the (now guaranteed to be linked) public path
+        self.buyerPixelCollectionCapOpt = buyerAcct.capabilities.get<&{NonFungibleToken.Receiver}>(
+            FlowGenPixel.CollectionPublicPath
+        )
+        if self.buyerPixelCollectionCapOpt == nil || !self.buyerPixelCollectionCapOpt!.check() {
+             panic("Could not get a valid Receiver capability for the buyer's FlowGenPixel Collection from the public path.")
+        }
+        log("DEBUG: Successfully obtained buyerPixelCollectionCapOpt (Receiver Capability).")
 
         let mainFlowVault = buyerAcct.storage.borrow<auth(FungibleToken.Withdraw) &{FungibleToken.Vault}>(from: /storage/flowTokenVault)
-            ?? panic("Cannot borrow Flow Token vault from buyer's account. Vault might not exist or path is incorrect.")
+            ?? panic("Cannot borrow Flow Token vault from buyer's account.")
         self.paymentVault <- mainFlowVault.withdraw(amount: paymentAmount)
+        log("DEBUG: Withdrew payment.")
 
         let feeReceiverAccount = getAccount(feeReceiverAddress)
         self.feeReceiverCapOpt = feeReceiverAccount.capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
+        if self.feeReceiverCapOpt == nil || !self.feeReceiverCapOpt!.check() {
+            panic("Could not obtain valid capability for fee receiver.")
+        }
+        log("DEBUG: Obtained fee receiver capability.")
         
         self.nftMinterRef = buyerAcct.storage.borrow<&FlowGenPixel.NFTMinter>(from: FlowGenPixel.MinterStoragePath)
-            ?? panic("Could not borrow NFTMinter reference. Signer might not be admin or Minter not at path.")
+            ?? panic("Could not borrow NFTMinter reference.")
+        log("DEBUG: Borrowed NFTMinter reference.")
     }
 
     execute {
-        let buyerPixelCollectionCap = self.buyerPixelCollectionCapOpt ?? panic("Buyer's FlowGenPixel Collection receiver capability not found.")
-        if !buyerPixelCollectionCap.check() {
-             panic("Buyer's FlowGenPixel Collection receiver capability is not valid.")
-        }
+        log("DEBUG: PurchasePixel.cdc - Inside EXECUTE")
+        let buyerPixelCollectionCap = self.buyerPixelCollectionCapOpt ?? panic("Buyer's FlowGenPixel Collection receiver capability not found in execute phase.")
 
-        let feeReceiverCap = self.feeReceiverCapOpt ?? panic("Fee receiver capability not found.")
-        if !feeReceiverCap.check(){
-            panic("Fee receiver capability is not valid.")
+        let feeReceiverCap = self.feeReceiverCapOpt ?? panic("Fee receiver capability not found in execute phase.")
+        if !feeReceiverCap.check(){ 
+            panic("Fee receiver capability is not valid in execute phase.")
         }
 
         let expectedPrice = FlowGenCanvas.getCurrentPrice()
@@ -67,8 +92,7 @@ transaction(
             panic("Pixel at coordinates (".concat(x.toString()).concat(", ").concat(y.toString()).concat(") is already taken."))
         }
 
-        let feeReceiver = feeReceiverCap.borrow()
-            ?? panic("Could not borrow fee receiver capability.")
+        let feeReceiver = feeReceiverCap.borrow()!
         feeReceiver.deposit(from: <-self.paymentVault)
         log("Payment deposited to fee receiver.")
 

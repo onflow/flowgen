@@ -59,7 +59,7 @@ export default function PurchasePanel({
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 		imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
 		console.log("Simulated image generated:", imageURL);
-
+		/* 
 		setIsGenerating(true);
 		try {
 			// 1. Generate random image
@@ -156,7 +156,7 @@ export default function PurchasePanel({
 			console.error("Error simulating image generation:", error);
 			setIsGenerating(false);
 			return;
-		}
+		} */
 
 		try {
 			const purchaseData = {

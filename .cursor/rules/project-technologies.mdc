@@ -15,7 +15,7 @@ This document outlines the primary technologies and frameworks used in this proj
 - **Manager**: [pnpm](mdc:pnpm-lock.yaml) (see [package.json](mdc:package.json))
 
 ## Database & ORM
-- **ORM**: [Drizzle ORM](mdc:drizzle.config.ts) (see schema in [db/](mdc:db) and configuration in [drizzle/](mdc:drizzle))
+- **ORM**: [Drizzle ORM](mdc:drizzle.config.ts) (see schema in [db/](mdc:db) and configuration in [drizzle/](mdc:drizzle)). Check lastest Drizzle documentation and schema for how to do indexes. 
 - **Database**: Neon DB (Serverless Postgres - as indicated by user, Drizzle connects to this)
 
 ## Blockchain Integration

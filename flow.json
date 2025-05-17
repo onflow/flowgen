@@ -9,7 +9,7 @@
 		"FlowGenPixel": {
 			"source": "cadence/contracts/FlowGenPixel.cdc",
 			"aliases": {
-				"testing": "0000000000000007"
+				"testing": "0000000000000008"
 			}
 		},
 		"FooBar": "cadence/contracts/FooBar.cdc"
@@ -68,18 +68,31 @@
 		"testnet": "access.devnet.nodes.onflow.org:9000"
 	},
 	"accounts": {
-		"admin": {
-			"address": "e2f72218abeec2b9",
-			"key": {
-				"type": "file",
-				"location": "keys/admin.pkey"
-			}
-		},
 		"emulator-account": {
 			"address": "f8d6e0586b0a20c7",
 			"key": {
 				"type": "file",
 				"location": "keys/emulator-account.pkey"
+			}
+		},
+		"admin-mainnet": {
+			"address": "54317bff2657376d",
+			"key": {
+				"type": "bip44",
+				"hashAlgorithm": "SHA2_256",
+				"signatureAlgorithm": "ECDSA_secp256k1",
+				"derivationPath": "m/44'/539'/0'/0/0",
+				"mnemonic": "$ADMIN_MNEMONIC"
+			}
+		},
+		"admin-testnet": {
+			"address": "832e53531bdc8fc5",
+			"key": {
+				"type": "bip44",
+				"hashAlgorithm": "SHA2_256",
+				"signatureAlgorithm": "ECDSA_secp256k1",
+				"derivationPath": "m/44'/539'/0'/0/0",
+				"mnemonic": "$ADMIN_MNEMONIC"
 			}
 		},
 		"receiver": {

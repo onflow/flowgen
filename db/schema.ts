@@ -10,6 +10,7 @@ import {
 	numeric,
 	timestamp,
 	uniqueIndex,
+	jsonb,
 } from "drizzle-orm/pg-core";
 
 export const pixels = pgTable(
@@ -49,6 +50,24 @@ export const flowEventTracker = pgTable("flow_event_tracker", {
 	lastProcessedBlockHeight: integer("last_processed_block_height").notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const flowEvents = pgTable(
+	"flow_events",
+	{
+		id: serial("id").primaryKey(),
+		eventType: text("event_type").notNull(),
+		transactionId: text("transaction_id").notNull(),
+		blockId: text("block_id").notNull(),
+		blockHeight: integer("block_height").notNull(),
+		blockTimestamp: timestamp("block_timestamp").notNull(),
+		eventIndex: integer("event_index").notNull(),
+		payload: jsonb("payload").notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(table) => [
+		uniqueIndex("unique_event_idx").on(table.transactionId, table.eventIndex),
+	]
+);
 
 // If you plan to have other tables, you can define them here as well.
 // For example:

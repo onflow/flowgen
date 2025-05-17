@@ -2,7 +2,7 @@ import "NonFungibleToken"
 import "MetadataViews"
 
 access(all)
-contract FooBar: NonFungibleToken {
+contract FlowGenAiImage: NonFungibleToken {
 
 /// Standard Paths
   access(all) let CollectionStoragePath: StoragePath
@@ -14,13 +14,23 @@ contract FooBar: NonFungibleToken {
 
   access(all) resource NFT: NonFungibleToken.NFT {
     access(all) let id: UInt64
+    access(all) let name: String
+    access(all) let description: String
+    access(all) let aiPrompt: String
+    access(all) let ipfsImageCID: String
+    access(all) let imageMediaType: String // e.g., "image/png", "image/jpeg"
 
-    init() {
+    init(name: String, description: String, aiPrompt: String, ipfsImageCID: String, imageMediaType: String) {
       self.id = self.uuid
+      self.name = name
+      self.description = description
+      self.aiPrompt = aiPrompt
+      self.ipfsImageCID = ipfsImageCID
+      self.imageMediaType = imageMediaType
     }
     
     access(all) fun createEmptyCollection(): @{NonFungibleToken.Collection} {
-      return <-FooBar.createEmptyCollection(nftType: Type<@FooBar.NFT>())
+      return <-FlowGenAiImage.createEmptyCollection(nftType: Type<@FlowGenAiImage.NFT>())
     }
 
     /// Gets a list of views specific to the individual NFT
@@ -30,7 +40,8 @@ contract FooBar: NonFungibleToken {
         Type<MetadataViews.Editions>(),
         Type<MetadataViews.NFTCollectionData>(),
         Type<MetadataViews.NFTCollectionDisplay>(),
-        Type<MetadataViews.Serial>()
+        Type<MetadataViews.Serial>(),
+        Type<MetadataViews.Media>()
       ]
     }
 
@@ -38,17 +49,19 @@ contract FooBar: NonFungibleToken {
     access(all) fun resolveView(_ view: Type): AnyStruct? {
       switch view {
         case Type<MetadataViews.Display>():
+          let fullDescription = self.description.concat("\n\nAI Prompt:\n").concat(self.aiPrompt)
+          let thumbnailUrl = "https://ipfs.io/ipfs/".concat(self.ipfsImageCID)
           return MetadataViews.Display(
-            name: "FooBar Example Token",
-            description: "An Example NFT Contract from the Flow NFT Guide",
+            name: self.name,
+            description: fullDescription,
             thumbnail: MetadataViews.HTTPFile(
-              url: "Fill this in with a URL to a thumbnail of the NFT"
+              url: thumbnailUrl
             )
           )
         case Type<MetadataViews.Editions>():
           // There is no max number of NFTs that can be minted from this contract
           // so the max edition field value is set to nil
-          let editionInfo = MetadataViews.Edition(name: "FooBar Edition", number: self.id, max: nil)
+          let editionInfo = MetadataViews.Edition(name: "FlowGenAiImage Edition", number: self.id, max: nil)
           let editionList: [MetadataViews.Edition] = [editionInfo]
           return MetadataViews.Editions(
             editionList
@@ -58,9 +71,15 @@ contract FooBar: NonFungibleToken {
             self.id
           )
         case Type<MetadataViews.NFTCollectionData>():
-          return FooBar.resolveContractView(resourceType: Type<@FooBar.NFT>(), viewType: Type<MetadataViews.NFTCollectionData>())
+          return FlowGenAiImage.resolveContractView(resourceType: Type<@FlowGenAiImage.NFT>(), viewType: Type<MetadataViews.NFTCollectionData>())
         case Type<MetadataViews.NFTCollectionDisplay>():
-          return FooBar.resolveContractView(resourceType: Type<@FooBar.NFT>(), viewType: Type<MetadataViews.NFTCollectionDisplay>())
+          return FlowGenAiImage.resolveContractView(resourceType: Type<@FlowGenAiImage.NFT>(), viewType: Type<MetadataViews.NFTCollectionDisplay>())
+        case Type<MetadataViews.Media>():
+          let imageUrl = "https://ipfs.io/ipfs/".concat(self.ipfsImageCID)
+          return MetadataViews.Media(
+            file: MetadataViews.HTTPFile(url: imageUrl),
+            mediaType: self.imageMediaType
+          )
       }
       return nil
     }
@@ -75,12 +94,12 @@ contract FooBar: NonFungibleToken {
     }
 
     access(all) fun createEmptyCollection(): @{NonFungibleToken.Collection} {
-      return <-FooBar.createEmptyCollection(nftType: Type<@FooBar.NFT>())
+      return <-FlowGenAiImage.createEmptyCollection(nftType: Type<@FlowGenAiImage.NFT>())
     }
     /// deposit takes a NFT and adds it to the collections dictionary
     /// and adds the ID to the id array
     access(all) fun deposit(token: @{NonFungibleToken.NFT}) {
-      let token <- token as! @FooBar.NFT
+      let token <- token as! @FlowGenAiImage.NFT
       let id = token.id
 
       // add the new token to the dictionary which removes the old one
@@ -91,7 +110,7 @@ contract FooBar: NonFungibleToken {
     /// withdraw removes an NFT from the collection and moves it to the caller
     access(NonFungibleToken.Withdraw) fun withdraw(withdrawID: UInt64): @{NonFungibleToken.NFT} {
       let token <- self.ownedNFTs.remove(key: withdrawID)
-          ?? panic("FooBar.Collection.withdraw: Could not withdraw an NFT with ID "
+          ?? panic("FlowGenAiImage.Collection.withdraw: Could not withdraw an NFT with ID "
               .concat(withdrawID.toString())
               .concat(". Check the submitted ID to make sure it is one that this collection owns."))
 
@@ -107,14 +126,14 @@ contract FooBar: NonFungibleToken {
     /// getSupportedNFTTypes returns a list of NFT types that this receiver accepts
     access(all) view fun getSupportedNFTTypes(): {Type: Bool} {
       let supportedTypes: {Type: Bool} = {}
-      supportedTypes[Type<@FooBar.NFT>()] = true
+      supportedTypes[Type<@FlowGenAiImage.NFT>()] = true
       return supportedTypes
     }
 
     /// Returns whether or not the given type is accepted by the collection
     /// A collection that can accept any type should just return true by default
     access(all) view fun isSupportedNFTType(type: Type): Bool {
-      return type == Type<@FooBar.NFT>()
+      return type == Type<@FlowGenAiImage.NFT>()
     }
     // Allows a caller to borrow a reference to a specific NFT
     /// so that they can get the metadata views for the specific NFT
@@ -123,8 +142,8 @@ contract FooBar: NonFungibleToken {
     }
   }
   access(all) resource NFTMinter {  
-    access(all) fun createNFT(): @NFT {
-      return <-create NFT()
+    access(all) fun createNFT(name: String, description: String, aiPrompt: String, ipfsImageCID: String, imageMediaType: String): @NFT {
+      return <-create NFT(name: name, description: description, aiPrompt: aiPrompt, ipfsImageCID: ipfsImageCID, imageMediaType: imageMediaType)
     }
 
     init() {
@@ -132,9 +151,9 @@ contract FooBar: NonFungibleToken {
   }
 
   init() {
-    self.CollectionStoragePath = /storage/fooBarNFTCollection
-    self.CollectionPublicPath = /public/fooBarNFTCollection
-    self.MinterStoragePath = /storage/fooBarNFTMinter
+    self.CollectionStoragePath = /storage/flowGenAiImageNFTCollection
+    self.CollectionPublicPath = /public/flowGenAiImageNFTCollection
+    self.MinterStoragePath = /storage/flowGenAiImageNFTMinter
     self.account.storage.save(<- create NFTMinter(), to: self.MinterStoragePath)
 
   }
@@ -158,23 +177,23 @@ contract FooBar: NonFungibleToken {
         let collectionData = MetadataViews.NFTCollectionData(
           storagePath: self.CollectionStoragePath,
           publicPath: self.CollectionPublicPath,
-          publicCollection: Type<&FooBar.Collection>(),
-          publicLinkedType: Type<&FooBar.Collection>(),
+          publicCollection: Type<&FlowGenAiImage.Collection>(),
+          publicLinkedType: Type<&FlowGenAiImage.Collection>(),
           createEmptyCollectionFunction: (fun(): @{NonFungibleToken.Collection} {
-            return <-FooBar.createEmptyCollection(nftType: Type<@FooBar.NFT>())
+            return <-FlowGenAiImage.createEmptyCollection(nftType: Type<@FlowGenAiImage.NFT>())
           })
         )
         return collectionData
       case Type<MetadataViews.NFTCollectionDisplay>():
-        let media = MetadataViews.Media(
+        let media: MetadataViews.Media = MetadataViews.Media(
           file: MetadataViews.HTTPFile(
-            url: "Add your own SVG+XML link here"
+            url: "https://ipfs.io/ipfs/bafkreif6666666666666666666666666666666666666666666666666666666666666666"
           ),
-          mediaType: "image/svg+xml"
+          mediaType: "image/png"
         )
         return MetadataViews.NFTCollectionDisplay(
-          name: "The FooBar Example Collection",
-          description: "This collection is used as an example to help you develop your next Flow NFT.",
+            name: "The FlowGenAiImage Collection",
+          description: "This collection is for images generated by the FlowGenAiImage contract.",
           externalURL: MetadataViews.ExternalURL("Add your own link here"),
           squareImage: media,
           bannerImage: media,

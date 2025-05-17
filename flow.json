@@ -1,5 +1,11 @@
 {
 	"contracts": {
+		"FlowGenAiImage": {
+			"source": "cadence/contracts/FlowGenAiImage.cdc",
+			"aliases": {
+				"testing": "0000000000000007"
+			}
+		},
 		"FlowGenCanvas": {
 			"source": "cadence/contracts/FlowGenCanvas.cdc",
 			"aliases": {
@@ -99,7 +105,11 @@
 	},
 	"deployments": {
 		"emulator": {
-			"emulator-account": ["FooBar", "FlowGenCanvas", "FlowGenPixel"]
+			"emulator-account": [
+				"FooBar",
+				"FlowGenCanvas",
+				"FlowGenPixel"
+			]
 		}
 	}
 }

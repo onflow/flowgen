@@ -11,6 +11,7 @@ import {
 	PixelBuyResult,
 	CanvasOverview,
 } from "@/lib/pixel-types";
+import { fcl } from "@/lib/fcl-server-config"; // Import server-configured FCL
 
 // In-memory store to simulate a database.
 // The key is a string like "x_y" (e.g., "10_20").
@@ -532,5 +533,209 @@ export async function getActiveMarketListingsServerAction(): Promise<
 	} catch (error) {
 		console.error("Error in getActiveMarketListingsServerAction:", error);
 		return []; // Return empty array on error
+	}
+}
+
+/**
+ * Server Action: Tracks a Flow transaction and updates the database upon successful completion,
+ * extracting necessary data from transaction events.
+ */
+export async function trackNftPurchaseAndUpdateDb(data: {
+	txId: string;
+	// x, y, userId will be extracted from events
+	prompt: string;
+	style: string;
+	imageURL: string;
+}): Promise<PixelSpaceResult> {
+	const { txId, prompt, style, imageURL } = data;
+
+	console.log(
+		`Server Action: Tracking Flow transaction ${txId} for pixel purchase.`
+	);
+
+	try {
+		const txStatus = await fcl.tx(txId).onceSealed();
+
+		console.log(
+			`Transaction ${txId} sealed. Status: ${txStatus.status}, Error: ${txStatus.errorMessage}, Events Count: ${txStatus.events.length}`
+		);
+
+		if (txStatus.status === 4 && !txStatus.errorMessage) {
+			// Transaction was successful (sealed)
+			let nftIdOnChain: string | undefined;
+			let pixelX: number | undefined;
+			let pixelY: number | undefined;
+			let ownerId: string | undefined;
+
+			// Extract data from events
+			for (const event of txStatus.events) {
+				// Adjust event type strings if your contract address or names differ
+				// Example: "A.YOUR_ACCOUNT_ADDRESS.FlowGenPixel.PixelMinted"
+				if (event.type.includes("FlowGenPixel.PixelMinted")) {
+					nftIdOnChain = String(event.data.id); // Assuming id is UInt64, convert to string
+					pixelX = parseInt(event.data.x, 10); // Assuming x is UInt16
+					pixelY = parseInt(event.data.y, 10); // Assuming y is UInt16
+					console.log(
+						`Extracted from PixelMinted: nftId=${nftIdOnChain}, x=${pixelX}, y=${pixelY}`
+					);
+				}
+				// Example: "A.STANDARD_NFT_ADDRESS.NonFungibleToken.Deposit"
+				if (event.type.includes("NonFungibleToken.Deposit")) {
+					if (event.data.to) {
+						// Check if 'to' field exists
+						ownerId = event.data.to;
+						// If we already got nftIdOnChain from PixelMinted, we can verify it matches event.data.id from Deposit
+						if (nftIdOnChain && nftIdOnChain !== String(event.data.id)) {
+							console.warn(
+								`Mismatch in NFT ID between PixelMinted event (${nftIdOnChain}) and Deposit event (${event.data.id}) for tx ${txId}`
+							);
+							// Potentially handle error or prioritize one source
+						} else if (!nftIdOnChain) {
+							nftIdOnChain = String(event.data.id);
+						}
+						console.log(
+							`Extracted from Deposit: ownerId=${ownerId}, nftId=${nftIdOnChain}`
+						);
+					}
+				}
+			}
+
+			if (
+				nftIdOnChain === undefined ||
+				pixelX === undefined ||
+				pixelY === undefined ||
+				ownerId === undefined
+			) {
+				console.error(
+					`Failed to extract all necessary data from transaction events for tx ${txId}. Found: nftId=${nftIdOnChain}, x=${pixelX}, y=${pixelY}, ownerId=${ownerId}`
+				);
+				return {
+					success: false,
+					error: "Failed to parse transaction events for pixel data.",
+				};
+			}
+
+			console.log(
+				`Flow transaction ${txId} successful. Updating database for pixel (${pixelX},${pixelY}), NFT ID: ${nftIdOnChain}, Owner: ${ownerId}.`
+			);
+
+			try {
+				const existingPixel = await db
+					.select()
+					.from(pixels)
+					.where(and(eq(pixels.x, pixelX), eq(pixels.y, pixelY)))
+					.limit(1);
+
+				if (existingPixel.length > 0 && existingPixel[0].isTaken) {
+					console.warn(
+						`Pixel (${pixelX},${pixelY}) was already marked as taken in DB (NFT ID: ${existingPixel[0].nftId}), despite successful tx ${txId} for new NFT ${nftIdOnChain}. This might indicate a retry or an issue.`
+					);
+					// If the existing nftId matches, it's idempotent. If not, it's an issue.
+					if (existingPixel[0].nftId === nftIdOnChain) {
+						return {
+							success: true,
+							pixelId: existingPixel[0].nftId,
+						};
+					}
+					// If NFT IDs don't match, this is a more complex situation.
+					// For now, we might return an error or overwrite, depending on business logic.
+					// Overwriting might be dangerous. Let's error for now.
+					return {
+						success: false,
+						error: `Pixel (${pixelX},${pixelY}) already taken in DB with a DIFFERENT NFT ID (${existingPixel[0].nftId}) than the one from tx events (${nftIdOnChain}). Manual review needed.`,
+					};
+				}
+
+				// Use the on-chain NFT ID
+				const result = await db
+					.insert(pixels)
+					.values({
+						x: pixelX,
+						y: pixelY,
+						isTaken: true,
+						ownerId: ownerId,
+						nftId: nftIdOnChain, // Use the actual NFT ID from the event
+						imageURL,
+						prompt,
+						style,
+					})
+					.returning({
+						id: pixels.id,
+						nftId: pixels.nftId,
+					});
+
+				if (result.length === 0 || !result[0].nftId) {
+					console.error(
+						`Failed to insert/update pixel in DB after tx ${txId} success for NFT ${nftIdOnChain}.`
+					);
+					return {
+						success: false,
+						error: "Database update failed after successful Flow transaction.",
+					};
+				}
+
+				console.log(
+					`Pixel (${pixelX},${pixelY}) acquired by ${ownerId}, DB updated. NFT ID: ${result[0].nftId}`
+				);
+				return { success: true, pixelId: result[0].nftId };
+			} catch (dbError: any) {
+				console.error(
+					`Database error after Flow transaction ${txId} (NFT ${nftIdOnChain}) was successful:`,
+					dbError
+				);
+				if (dbError.message.includes("unique_coordinates_idx")) {
+					// This implies that x,y is unique. If we got here, it means the 'existingPixel' check above
+					// might have had a race condition, or the DB write for a previous attempt for the same pixel failed
+					// after the on-chain tx succeeded but before this unique constraint was hit.
+					// We should try to fetch the pixel again to see if it matches our current nftIdOnChain.
+					const currentDbPixel = await db.query.pixels.findFirst({
+						where: and(eq(pixels.x, pixelX), eq(pixels.y, pixelY)),
+					});
+					if (
+						currentDbPixel &&
+						currentDbPixel.nftId === nftIdOnChain &&
+						currentDbPixel.ownerId === ownerId
+					) {
+						console.log(
+							`Pixel (${pixelX},${pixelY}) with NFT ID ${nftIdOnChain} already exists in DB due to unique constraint, likely a retry. Data matches.`
+						);
+						return { success: true, pixelId: nftIdOnChain };
+					}
+					console.error(
+						`Unique constraint violation for pixel (${pixelX},${pixelY}), but current NFT ID ${nftIdOnChain} or owner ${ownerId} does not match DB record: ${JSON.stringify(
+							currentDbPixel
+						)}.`
+					);
+					return {
+						success: false,
+						error:
+							"Pixel already taken (concurrent DB update with different data).",
+					};
+				}
+				return {
+					success: false,
+					error:
+						"An unexpected database error occurred after transaction success.",
+				};
+			}
+		} else {
+			console.error(
+				`Flow transaction ${txId} failed or was not sealed. Status: ${txStatus.status}, Error: ${txStatus.errorMessage}`
+			);
+			return {
+				success: false,
+				error: `Flow transaction failed: ${
+					txStatus.errorMessage || "Unknown error"
+				}`,
+			};
+		}
+	} catch (error: any) {
+		console.error(`Error tracking Flow transaction ${txId}:`, error);
+		return {
+			success: false,
+			error: `Failed to track Flow transaction: ${
+				error.message || "Unknown error"
+			}`,
+		};
 	}
 }

@@ -18,11 +18,9 @@ import {
 	CanvasOverview,
 	PixelOnChainData,
 } from "../../lib/pixel-types";
-import { acquirePixelSpaceServerAction } from "../actions/canvas-actions"; // Import server action directly
+import { trackNftPurchaseAndUpdateDb } from "../actions/canvas-actions"; // Import server action directly
 
 import { useFlowMutate, useFlowQuery, useFlowTransaction } from "@onflow/kit";
-import * as fcl from "@onflow/fcl";
-// import { arg, ArgumentFunction } from "@onflow/fcl"; // ArgumentFunction type might not be directly exported or needed with `any`
 
 // Import the Cadence script as a raw string
 import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
@@ -70,21 +68,77 @@ interface AcquirePixelParams {
 }
 
 // Hook for acquiring pixel space (with Flow transaction)
-export function useAcquirePixelSpace() {
+export function useAcquirePixelSpace({
+	onSuccess,
+	onError,
+}: {
+	onSuccess: (data: unknown) => void;
+	onError: (error: unknown) => void;
+}) {
+	// Store the params needed for the server action, to be used when txId is available
+	const [actionParams, setActionParams] = useState<Omit<
+		Parameters<typeof trackNftPurchaseAndUpdateDb>[0],
+		"txId"
+	> | null>(null);
+
 	const {
 		mutate,
 		isPending: isFlowMutating,
 		error: flowErrorFromHook,
-		data: txIdFromHookData, // This will hold the txId after mutate() resolves
-	} = useFlowMutate();
-
-	const { transactionStatus, error } = useFlowTransaction({
-		id: txIdFromHookData || "",
+		data: txIdFromHookData,
+	} = useFlowMutate({
+		mutation: {
+			onSuccess: (txId: string) => {
+				console.log(
+					"Flow transaction submitted via useFlowMutate with ID:",
+					txId
+				);
+				setIsTrackingAndUpdating(true);
+				trackNftPurchaseAndUpdateDb({
+					txId: txId,
+					prompt: actionParams?.prompt || "",
+					style: actionParams?.style || "",
+					imageURL: actionParams?.imageURL || "",
+				})
+					.then((result) => {
+						setFinalPixelData(result);
+						if (!result.success) {
+							throw new Error(result.error);
+						} else {
+							onSuccess(result);
+						}
+					})
+					.catch((err) => {
+						console.error("Error calling trackNftPurchaseAndUpdateDb:", err);
+						onError(err);
+						setCombinedError(
+							err instanceof Error
+								? err
+								: new Error(
+										"An unexpected error occurred during transaction tracking."
+								  )
+						);
+						setFinalPixelData(null);
+					})
+					.finally(() => {
+						setIsTrackingAndUpdating(false);
+						setActionParams(null); // Clear action params after use
+					});
+			},
+			onError: (error) => {
+				console.error(
+					"Flow transaction submission via useFlowMutate failed:",
+					error
+				);
+			},
+		},
 	});
 
-	const [isLoadingBackend, setIsLoadingBackend] = useState(false);
+	const [isTrackingAndUpdating, setIsTrackingAndUpdating] = useState(false);
 	const [combinedError, setCombinedError] = useState<Error | null>(null);
-	const [backendData, setBackendData] = useState<PixelSpaceResult | null>(null);
+	const [finalPixelData, setFinalPixelData] = useState<PixelSpaceResult | null>(
+		null
+	);
 
 	const acquire = useCallback(
 		async ({
@@ -94,130 +148,94 @@ export function useAcquirePixelSpace() {
 			style,
 			imageURL,
 			flowPaymentAmount,
-			backendPaymentAmount,
 			userId,
 			feeReceiverAddress = DEFAULT_FEE_RECEIVER_ADDRESS,
 			royaltyRate = DEFAULT_ROYALTY_RATE,
 			pixelContractAdminAddress,
-		}: AcquirePixelParams): Promise<PixelSpaceResult> => {
-			setIsLoadingBackend(false);
+		}: AcquirePixelParams) => {
 			setCombinedError(null);
-			setBackendData(null);
+			setFinalPixelData(null);
+			setIsTrackingAndUpdating(false); // Reset tracking state
+
+			// Store params for the server action call that will happen in useEffect
+			setActionParams({ prompt, style, imageURL });
+
+			console.log("Initiating Flow transaction for pixel purchase...");
+
+			const finalPixelName = `Pixel Art #${x}-${y}`;
+			const finalDescription = prompt;
+			const finalThumbnailURL = imageURL;
+			const finalAiCadencePrompt = prompt;
+			const finalImageURI = imageURL;
+			const finalPixelArtURI = imageURL;
+			const finalImageHash = `image-hash-${Date.now()}`; // Consider a more robust hashing
+
+			const args = (arg: any, t: any): any[] => [
+				arg(x, t.UInt16),
+				arg(y, t.UInt16),
+				arg(finalPixelName, t.String),
+				arg(finalDescription, t.String),
+				arg(finalThumbnailURL, t.String),
+				arg(finalAiCadencePrompt, t.String),
+				arg(finalImageURI, t.String),
+				arg(finalPixelArtURI, t.String),
+				arg(finalImageHash, t.String),
+				arg(flowPaymentAmount, t.UFix64),
+				arg(userId, t.Address), // creatorAddress for Cadence, matches current user
+				arg(royaltyRate, t.UFix64),
+				arg(pixelContractAdminAddress || userId, t.Address),
+				arg(feeReceiverAddress, t.Address),
+			];
 
 			try {
-				console.log("Executing Flow transaction for pixel purchase...");
-
-				const finalPixelName = `Pixel Art #${x}-${y}`;
-				const finalDescription = prompt;
-				const finalThumbnailURL = imageURL;
-				const finalAiCadencePrompt = prompt;
-				const finalImageURI = imageURL;
-				const finalPixelArtURI = imageURL;
-				const finalImageHash = `image-hash-${Date.now()}`;
-
-				const args = (arg: any, t: any): any[] => {
-					const scriptArgs = [
-						arg(x, t.UInt16),
-						arg(y, t.UInt16),
-						arg(finalPixelName, t.String),
-						arg(finalDescription, t.String),
-						arg(finalThumbnailURL, t.String),
-						arg(finalAiCadencePrompt, t.String),
-						arg(finalImageURI, t.String),
-						arg(finalPixelArtURI, t.String),
-						arg(finalImageHash, t.String),
-						arg(flowPaymentAmount, t.UFix64),
-						arg(userId, t.Address), // creatorAddress
-						arg(royaltyRate, t.UFix64),
-						arg(pixelContractAdminAddress || userId, t.Address),
-						arg(feeReceiverAddress, t.Address),
-					];
-					console.log(
-						"Number of arguments being prepared for Cadence:",
-						scriptArgs.length
-					);
-					console.log("Cadence Arguments:", scriptArgs);
-					return scriptArgs;
-				};
-
+				// Mutate will set txIdFromHookData when the transaction is submitted
 				mutate({
 					cadence: PURCHASE_PIXEL_CADENCE,
 					args: args,
 					limit: 999,
 				});
-				/* 
-				console.log(
-					"Flow transaction submitted with ID:",
-					txId,
-					"(Hook data txId:",
-					txIdFromHookData,
-					")"
-				);
-
-				await fcl.tx(txId).onceSealed();
-				console.log("Flow transaction sealed successfully.");
- */
-				setIsLoadingBackend(true);
-				const backendResultData = await acquirePixelSpaceServerAction({
-					x,
-					y,
-					prompt,
-					style,
-					imageURL,
-					paymentAmount: backendPaymentAmount,
-					userId,
-				});
-				setBackendData(backendResultData);
-
-				if (!backendResultData.success) {
-					console.error(
-						"Backend error after Flow success:",
-						backendResultData.error
-					);
-					setCombinedError(
-						new Error(
-							backendResultData.error || "Backend failed to record pixel."
-						)
-					);
-				}
-				return backendResultData;
+				// The actual call to trackNftPurchaseAndUpdateDb will happen in the useEffect below
+				// once txIdFromHookData is set by useFlowMutate.
 			} catch (e: unknown) {
-				console.error("Error in acquire process:", e);
+				console.error("Error calling mutate for Flow transaction:", e);
 				const caughtError = e as any;
+				let errorMessage = "Flow transaction submission failed.";
 				if (caughtError && (caughtError.message || caughtError.errorMessage)) {
-					setCombinedError(
-						new Error(caughtError.message || caughtError.errorMessage)
-					);
-				} else if (e instanceof Error) {
-					setCombinedError(e);
-				} else {
-					setCombinedError(
-						new Error("An unknown error occurred during pixel acquisition.")
-					);
+					errorMessage = caughtError.message || caughtError.errorMessage;
 				}
-				setBackendData(null);
+				setCombinedError(new Error(errorMessage));
+				setActionParams(null); // Clear action params on error
+				// No explicit PixelSpaceResult to return here, error is set
+				// The surrounding component should handle the error state.
+				// We throw to ensure the promise from acquire rejects if mutate itself throws.
 				throw e;
-			} finally {
-				setIsLoadingBackend(false);
 			}
+			// Note: The promise returned by `acquire` will resolve once `mutate` is called.
+			// The actual result of the transaction and DB update will be reflected in `finalPixelData` and `combinedError` state.
+			// Components using this hook should observe these state variables for the outcome.
+			// For direct return, one might await the server action, but that requires txId immediately.
+			// This hook is designed to be more reactive.
 		},
-		[mutate, txIdFromHookData]
+		[mutate]
 	);
 
-	// Determine overall error to display, prioritizing Flow error if it exists
+	// Determine overall error to display
+	// Prioritize Flow client-side error (e.g., from user rejecting tx in wallet)
+	// Then, errors from the tracking/DB update process
 	const displayError = flowErrorFromHook
-		? new Error(flowErrorFromHook.message || "Flow transaction failed")
+		? new Error(flowErrorFromHook.message || "Flow transaction setup failed.")
 		: combinedError;
 
+	// The hook now returns the data from the server action that tracks the transaction
 	return {
 		acquire,
-		data: backendData, // This is the result from the backend
-		isLoading: isFlowMutating || isLoadingBackend,
+		data: finalPixelData,
+		isLoading: isFlowMutating || isTrackingAndUpdating, // Loading if Flow tx pending OR server action tracking
 		error: displayError,
-		isFlowMutating,
-		isBackendLoading: isLoadingBackend,
+		isFlowMutating, // True when useFlowMutate is submitting the tx to the chain
+		isTrackingAndUpdating, // True when the server action is tracking and updating DB
 		flowError: flowErrorFromHook,
-		txId: txIdFromHookData, // Expose the txId from the hook's data state
+		txId: txIdFromHookData,
 	};
 }
 

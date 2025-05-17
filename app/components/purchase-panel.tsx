@@ -12,13 +12,6 @@ type PurchasePanelProps = {
 	selectedSpace: PixelOnChainData | null;
 	currentPrice: number;
 	onCancel: () => void;
-	onPixelPurchased: (pixel: {
-		id: number;
-		x: number;
-		y: number;
-		owner: string | null;
-		image: string | null;
-	}) => void;
 	onPurchaseSuccess: () => void;
 };
 
@@ -26,7 +19,6 @@ export default function PurchasePanel({
 	selectedSpace,
 	currentPrice,
 	onCancel,
-	onPixelPurchased,
 	onPurchaseSuccess,
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
@@ -40,7 +32,16 @@ export default function PurchasePanel({
 		acquire,
 		isLoading: isAcquiringPixel,
 		error: acquirePixelError,
-	} = useAcquirePixelSpace();
+	} = useAcquirePixelSpace({
+		onSuccess: () => {
+			console.log("Pixel acquired successfully");
+
+			onPurchaseSuccess();
+		},
+		onError: (error) => {
+			console.error("Error acquiring pixel:", error);
+		},
+	});
 
 	const handleGenerate = async () => {
 		if (!selectedSpace || !user.loggedIn || !user.addr) {
@@ -54,107 +55,9 @@ export default function PurchasePanel({
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 		imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
 		console.log("Simulated image generated:", imageURL);
-		/* 
-		setIsGenerating(true);
-		try {
-			// 1. Generate random image
-			setIsSubmitting(true);
-
-			// 2. Purchase transaction
-			const transactionId = await fcl.mutate({
-				cadence: `
-					import FungibleToken from 0x9a0766d93b6608b7
-					import NonFungibleToken from 0x631e88ae7f1d7c20
-					import FlowGenPixel from 0xFlowGenPixel
-					import FlowGenCanvas from 0xFlowGenCanvas
-
-					transaction(
-						x: UInt16,
-						y: UInt16,
-						name: String,
-						description: String,
-						thumbnailURL: String,
-						aiPrompt: String,
-						imageURI: String,
-						pixelArtURI: String,
-						imageHash: String,
-						paymentAmount: UFix64
-					) {
-						let paymentVault: @FungibleToken.Vault
-						let pixelCollection: &FlowGenPixel.Collection
-
-						prepare(signer: AuthAccount) {
-							// Get payment vault
-							let vaultRef = signer.borrow<&FungibleToken.Vault>(from: /storage/flowTokenVault)
-								?? panic("Could not borrow Flow token vault")
-							self.paymentVault <- vaultRef.withdraw(amount: paymentAmount)
-
-							// Setup pixel collection if needed
-							if signer.borrow<&FlowGenPixel.Collection>(from: /storage/FlowGenPixelCollection) == nil {
-								signer.save(<-FlowGenPixel.createEmptyCollection(), to: /storage/FlowGenPixelCollection)
-							}
-
-							self.pixelCollection = signer.borrow<&FlowGenPixel.Collection>(from: /storage/FlowGenPixelCollection)
-								?? panic("Could not borrow pixel collection")
-						}
-
-						execute {
-							// Purchase pixel
-							FlowGenCanvas.purchasePixel(
-								x: x,
-								y: y,
-								payment: <-self.paymentVault,
-								metadata: {
-									"name": name,
-									"description": description,
-									"thumbnail": thumbnailURL,
-									"prompt": aiPrompt,
-									"image": imageURI,
-									"pixelArt": pixelArtURI,
-									"hash": imageHash
-								},
-								pixelCollection: self.pixelCollection
-							)
-						}
-					}
-				`,
-				args: (arg, t) => [
-					arg(selectedSpace.x, t.UInt16),
-					arg(selectedSpace.y, t.UInt16),
-					arg(`Pixel Art #${selectedSpace.x}-${selectedSpace.y}`, t.String),
-					arg(prompt, t.String),
-					arg(imageURL, t.String),
-					arg(prompt, t.String),
-					arg(imageURL, t.String),
-					arg(imageURL, t.String),
-					arg(`hash-${Date.now()}`, t.String),
-					arg((currentPrice + 0.01).toFixed(8), t.UFix64),
-				],
-				limit: 999,
-			});
-
-			// 3. Monitor transaction
-			fcl.tx(transactionId).subscribe((transaction) => {
-				if (transaction.status === 4) {
-					// status 4 is Sealed
-					const newPixel = {
-						...selectedSpace,
-						owner: user?.addr || null,
-						image: imageURL,
-					};
-					onPixelPurchased(newPixel);
-					setIsGenerating(false);
-					setIsSubmitting(false);
-				}
-			});
-		} catch (error) {
-			console.error("Error simulating image generation:", error);
-			setIsGenerating(false);
-			return;
-		} */
 
 		try {
-			const result = await acquire({
+			await acquire({
 				x: selectedSpace.x,
 				y: selectedSpace.y,
 				prompt: prompt,
@@ -164,21 +67,6 @@ export default function PurchasePanel({
 				backendPaymentAmount: currentPrice + 0.01,
 				userId: user.addr,
 			});
-
-			if (result.success) {
-				console.log(
-					"Pixel space acquired successfully. Pixel ID:",
-					result.pixelId
-				);
-				onPixelPurchased({
-					...selectedSpace,
-					owner: user.addr,
-					image: imageURL,
-				});
-				onPurchaseSuccess();
-			} else {
-				console.error("Failed to acquire pixel space:", result.error);
-			}
 		} catch (error) {
 			console.error("Error during pixel acquisition process:", error);
 		} finally {
@@ -186,8 +74,6 @@ export default function PurchasePanel({
 			onCancel();
 		}
 	};
-
-	console.log("selectedSpace", selectedSpace);
 
 	if (!selectedSpace) {
 		return (

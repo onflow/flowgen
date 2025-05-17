@@ -1,5 +1,4 @@
 import { useFlowQuery } from "@onflow/kit";
-import { Address, UInt64 } from "@onflow/types";
 import GET_PIXEL_NFT_DETAILS_SCRIPT from "@/cadence/scripts/GetPixelNFTDetails.cdc"; // Assuming raw import setup for .cdc files
 
 // This should match the structure returned by the Cadence script

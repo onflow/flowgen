@@ -12,6 +12,7 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",
     "@onflow/fcl": "^1.17.0",
+    "@onflow/fcl-wc": "^6.0.2",
     "@onflow/kit": "^0.1.0",
     "drizzle-orm": "^0.43.1",
     "lucide-react": "^0.510.0",

@@ -14,6 +14,7 @@ type PixelGridProps = {
 	onCellClick: (cell: PixelOnChainData) => void;
 	soldPercentage: number;
 	currentPrice: number;
+	selectedSpace: PixelOnChainData | null;
 };
 
 export default function PixelGrid({
@@ -23,8 +24,6 @@ export default function PixelGrid({
 	soldPercentage,
 	currentPrice,
 }: PixelGridProps) {
-	const [selectedPixel, setSelectedPixel] = useState<Pixel | null>(null);
-
 	const handleCellClick = (cell: PixelOnChainData) => {
 		console.log("handleCellClick", cell);
 		onCellClick(cell);

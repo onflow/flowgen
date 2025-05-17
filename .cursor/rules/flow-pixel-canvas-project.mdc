@@ -1,0 +1,70 @@
+---
+description: Anything to do with Cadence
+globs: 
+alwaysApply: false
+---
+# Flow/Cadence Project: AI Pixel Canvas
+
+This rule outlines key aspects of the AI-Generated Million Dollar Homepage project on the Flow blockchain, focusing on Cadence 1.0 contracts, scripts, transactions, and testing patterns discussed.
+
+## Core Contracts
+
+1.  **`FlowGenPixel.cdc`**: Located at `[cadence/contracts/FlowGenPixel.cdc](mdc:cadence/contracts/FlowGenPixel.cdc)`
+    *   Defines the core NFT for individual pixels (`FlowGenPixel.NFT`).
+    *   Implements `NonFungibleToken.NFT` and standard metadata views.
+    *   Manages unique pixel coordinate registration (e.g., via `registeredPixelKeys: {String: UInt64}`).
+    *   Handles royalty setup for creators (`MetadataViews.Royalty`) during minting.
+    *   Contains an `NFTMinter` resource for creating new pixel NFTs.
+    *   Exposes public functions like `isPixelMinted(x: UInt16, y: UInt16): Bool` and `getPixelNFTID(x: UInt16, y: UInt16): UInt64?`.
+    *   Defines `CanvasResolution` (e.g., "1024x1024") as a public constant string.
+
+2.  **`FlowGenCanvas.cdc`**: Located at `[cadence/contracts/FlowGenCanvas.cdc](mdc:cadence/contracts/FlowGenCanvas.cdc)`
+    *   Acts as a view/info layer for the overall canvas.
+    *   Imports `FlowGenPixel` (using named import `import FlowGenPixel from "FlowGenPixel"`).
+    *   Provides functions like `isPixelTaken(x: UInt16, y: UInt16): Bool`, `getNFTIDForPixel(x: UInt16, y: UInt16): UInt64?` by calling `FlowGenPixel`.
+    *   Exposes `canvasWidth`, `canvasHeight`, `totalPixels`.
+    *   May offer functions like `getSoldPixels()` (by querying `FlowGenPixel.totalSupply`) and `getCurrentPrice()` (for primary sales).
+
+3.  **Marketplace (Future)**: Intended to use a standard `NFTStorefrontV2.cdc` instance for secondary sales.
+
+## Standard Contracts & Imports
+
+*   **Named Imports are Preferred**: All Cadence files (contracts, scripts, transactions, tests) should use named imports for standard Flow contracts (e.g., `NonFungibleToken`, `FungibleToken`, `MetadataViews`, `ViewResolver`) and project-specific contracts (e.g., `FlowGenPixel`, `FlowGenCanvas`).
+*   **`flow.json` Configuration**: This file is critical for defining contract sources/addresses that back these named imports. It should be correctly configured for the target network (emulator, testnet, mainnet).
+
+## Key Cadence 1.0 Patterns & Transactions
+
+*   **Account Setup**: `[cadence/transactions/setup_foobar_collection.cdc](mdc:cadence/transactions/setup_foobar_collection.cdc)` (renamed/adapted to `setup_flowgenpixel_collection.cdc`) is used for users to prepare their account to receive `FlowGenPixel.NFT`s by creating a `FlowGenPixel.Collection` and linking public capabilities.
+    *   Uses `signer.storage.save(<-collection, ...)` and `signer.capabilities.storage.issue<...>()` / `signer.capabilities.publish(...)`.
+*   **Primary Sale/Minting (`PurchasePixel.cdc`)**: `[cadence/transactions/PurchasePixel.cdc](mdc:cadence/transactions/PurchasePixel.cdc)`
+    *   Handles a buyer paying a fee to have a new `FlowGenPixel.NFT` minted.
+    *   Interacts with `FlowGenPixel.NFTMinter`.
+    *   Requires parameters for NFT metadata (including AI-generated content URIs/details), coordinates, payment, creator address for royalties, and admin/fee receiver addresses.
+    *   Uses `AuthAccount` capabilities for storage and token withdrawal.
+    *   Fetches capabilities using `account.capabilities.get<T>() ?? panic(...)` followed by `cap.check()` and `cap.borrow() ?? panic(...)`.
+*   **`ownedNFTs` Dictionary**: In `FlowGenPixel.Collection`, `ownedNFTs` is `@{UInt64: {NonFungibleToken.NFT}}` to align with `FooBar.cdc` example that passes user's linter.
+*   **`NFTMinter` Access**: Minting is controlled by `FlowGenPixel.NFTMinter` resource, typically stored in the `FlowGenPixel` deployer's account.
+
+## Scripts
+
+*   `[cadence/scripts/GetCanvasState.cdc](mdc:cadence/scripts/GetCanvasState.cdc)`: Fetches overall canvas info from `FlowGenCanvas`.
+*   `[cadence/scripts/GetPixelInfo.cdc](mdc:cadence/scripts/GetPixelInfo.cdc)`: Fetches info for a specific pixel from `FlowGenCanvas`.
+*   Assume named imports (e.g., `import FlowGenCanvas from "FlowGenCanvas"`).
+
+## Testing (`cadence/tests/`)
+
+*   Test files like `[cadence/tests/flowGenPixel_test.cdc](mdc:cadence/tests/flowGenPixel_test.cdc)` and `[cadence/tests/flowGenCanvas_test.cdc](mdc:cadence/tests/flowGenCanvas_test.cdc)` should be created.
+*   Use a `Test` framework (e.g., `import Test`).
+*   Test contract deployment, account setup, NFT minting, metadata resolution, canvas queries.
+*   Require setup for account aliases (e.g., `0xAdmin`, `0x01`) and royalty receivers.
+*   Employ `Test.Blockchain.snapshot()` and `revert()` for state management.
+*   Use named imports for contracts within tests.
+
+## General Cadence 1.0 Notes
+
+*   Explicit `uuid` declaration in NFT resources is not needed (`self.id = self.uuid` is used).
+*   `AuthAccount` requires explicit entitlements for operations (e.g., `auth(Storage) &Account`).
+*   Standard library paths for `FungibleToken.Vault` is `/storage/flowTokenVault` and receiver is `/public/flowTokenReceiver`.
+*   Royalty receiver path standard: `MetadataViews.getRoyaltyReceiverPublicPath()`.
+
+This rule should help maintain context for future development on this project.

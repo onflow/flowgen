@@ -1,5 +1,5 @@
-import FlowGenCanvas from "FlowGenCanvas"
-import FlowGenPixel from "FlowGenPixel" // Needed if we want to provide more direct NFT info later
+import "FlowGenCanvas"
+import "FlowGenPixel" // Needed if we want to provide more direct NFT info later
 
 // Returns information about a specific pixel on the canvas
 access(all) fun main(x: UInt16, y: UInt16): {String: AnyStruct} {

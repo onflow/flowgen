@@ -1,0 +1,6 @@
+{
+	"references.preferredLocation": "view",
+	"files.associations": {
+		"*.cdc": "cadence"
+	}
+}

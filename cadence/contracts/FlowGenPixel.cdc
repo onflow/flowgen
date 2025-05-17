@@ -235,7 +235,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                 )
             case Type<MetadataViews.NFTCollectionDisplay>():
                 let media = MetadataViews.Media(
-                    file: MetadataViews.HTTPFile(url: "YOUR_COLLECTION_SQUARE_IMAGE_URL_HERE"),
+                    file: MetadataViews.HTTPFile(url: "https://flowgen.art/flowgen.png"),
                     mediaType: "image/*"
                 )
                 return MetadataViews.NFTCollectionDisplay(

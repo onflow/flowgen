@@ -15,6 +15,14 @@ export interface PixelData {
 	error?: string; // Optional error field
 }
 
+export interface PixelOnChainData {
+	id: number; // Database primary key
+	x: number;
+	y: number;
+	isTaken: boolean;
+	nftId: string | null; // Would be the NFT ID on Flow / unique ID for the pixel in Web2
+}
+
 export interface PixelSpaceResult {
 	success: boolean;
 	pixelId?: string;

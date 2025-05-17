@@ -3,7 +3,7 @@
 
 // Import the NFT contract to call its public functions
 // Assuming FlowGenPixel.cdc is in the same directory or path is resolved by flow.json
-import FlowGenPixel from "FlowGenPixel" // Changed to named import
+import "FlowGenPixel" // Changed to named import
 
 access(all) contract FlowGenCanvas {
 
@@ -49,8 +49,8 @@ access(all) contract FlowGenCanvas {
         // For now, we assume it's "1024x1024"
         
         // This is a simplistic way to set these; ideally, they are configured robustly.
-        let initialCanvasWidth: UInt16 = 1024 
-        let initialCanvasHeight: UInt16 = 1024
+        let initialCanvasWidth: UInt16 = 16 
+        let initialCanvasHeight: UInt16 = 16
         
         self.canvasWidth = initialCanvasWidth
         self.canvasHeight = initialCanvasHeight

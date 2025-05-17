@@ -18,13 +18,16 @@ import {
 	CanvasOverview,
 	PixelOnChainData,
 } from "../../lib/pixel-types";
-import { trackNftPurchaseAndUpdateDb } from "../actions/canvas-actions"; // Import server action directly
+import {
+	trackNftPurchaseAndUpdateDb,
+	getAllGridDataServerAction,
+} from "../actions/canvas-actions"; // Import server action directly
 
 import { useFlowMutate, useFlowQuery, useFlowTransaction } from "@onflow/kit";
 
 // Import the Cadence script as a raw string
 import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
-import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc";
+import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc"; // Re-add this import
 import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
 
 // TODO: Replace placeholder addresses with actual configuration or environment variables
@@ -239,7 +242,7 @@ export function useAcquirePixelSpace({
 	};
 }
 
-// Hook for getting canvas overview using useFlowQuery
+// Hook for getting canvas overview using useFlowQuery (reverted to original functionality)
 export function useCanvasOverview() {
 	const {
 		data: transformedData, // This will be CanvasOverview | null after select
@@ -247,22 +250,24 @@ export function useCanvasOverview() {
 		error: queryError,
 		refetch,
 	} = useFlowQuery({
-		// Type params: TQueryFnData, TError, TData (after select), TQueryKey
 		cadence: GET_CANVAS_OVERVIEW_CDC,
 		// No args for this script
+		args: () => [], // Ensure args is a function, even if it returns an empty array
 		query: {
 			staleTime: 30000, // Cache for 30 seconds
 			select: (rawData: any): CanvasOverview | null => {
 				if (!rawData) return null;
+				// Add robust checking based on the expected structure of rawData from GET_CANVAS_OVERVIEW_CDC
+				// For example, if it's expected to be { resolution: string, totalPixels: number, soldPixels: number, currentPrice: number }
 				if (
 					rawData &&
 					typeof rawData.resolution === "string" &&
 					rawData.totalPixels !== null &&
-					rawData.totalPixels !== undefined &&
+					typeof rawData.totalPixels !== "undefined" && // More robust check
 					rawData.soldPixels !== null &&
-					rawData.soldPixels !== undefined &&
+					typeof rawData.soldPixels !== "undefined" && // More robust check
 					rawData.currentPrice !== null &&
-					rawData.currentPrice !== undefined
+					typeof rawData.currentPrice !== "undefined" // More robust check
 				) {
 					return {
 						resolution: rawData.resolution,
@@ -275,17 +280,14 @@ export function useCanvasOverview() {
 						"Invalid data structure from GetCanvasOverview.cdc:",
 						rawData
 					);
-					// Throw an error that useFlowQuery will catch in its `error` state
 					throw new Error("Failed to parse canvas overview data from Flow.");
 				}
 			},
 		},
 	});
 
-	// If select throws an error, queryError will be populated.
-	// transformedData is the direct result from the select function.
 	return {
-		data: transformedData as CanvasOverview,
+		data: transformedData as CanvasOverview | null, // This is CanvasOverview | null
 		isLoading,
 		error: queryError,
 		refetch,
@@ -510,5 +512,41 @@ export function useCanvasSectionData(params: CanvasSectionParams | null) {
 		isLoading,
 		error: queryError,
 		refetch,
+	};
+}
+
+// Hook for fetching all pixel data directly from the database
+export function useAllPixelData() {
+	const [data, setData] = useState<PixelData[] | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+
+	const fetchData = useCallback(async () => {
+		setIsLoading(true);
+		setError(null);
+		try {
+			// Ensure getAllGridDataServerAction is imported at the top of the file
+			const allPixelData = await getAllGridDataServerAction();
+			setData(allPixelData);
+		} catch (e: any) {
+			console.error("Error fetching all pixel data in useAllPixelData:", e);
+			setError(
+				e instanceof Error ? e : new Error("Failed to fetch all pixel data.")
+			);
+			setData(null);
+		} finally {
+			setIsLoading(false);
+		}
+	}, []);
+
+	useEffect(() => {
+		fetchData();
+	}, [fetchData]);
+
+	return {
+		data, // PixelData[] | null
+		isLoading,
+		error,
+		refetch: fetchData,
 	};
 }

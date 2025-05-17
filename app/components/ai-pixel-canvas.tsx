@@ -7,6 +7,7 @@ import PurchasePanel from "./purchase-panel";
 import { useCurrentFlowUser } from "@onflow/kit";
 import { PixelData, CanvasOverview, PixelOnChainData } from "@/lib/pixel-types";
 import {
+	useAllPixelData,
 	useCanvasOverview,
 	useCanvasSectionData,
 } from "@/app/hooks/pixel-hooks";
@@ -35,11 +36,44 @@ export default function AIPixelCanvas() {
 		refetch: fetchCanvasOverview,
 	} = useCanvasOverview();
 
+	const {
+		data: allPixelsData,
+		isLoading: isAllPixelsLoading,
+		error: allPixelsError,
+		refetch: refetchAllPixels,
+	} = useAllPixelData();
+
 	// State for grid parameters, passed to useCanvasSectionData
 	const [gridParams, setGridParams] = useState<CanvasSectionParams | null>(
 		null
 	);
 
+	const fullGridPixels: PixelData[] = [];
+	if (!isOverviewLoading && allPixelsData && gridParams) {
+		for (let y = 0; y < gridParams.height; y++) {
+			for (let x = 0; x < gridParams.width; x++) {
+				const dbPixel = allPixelsData.find((p) => p.x === x && p.y === y);
+				if (dbPixel) {
+					fullGridPixels.push(dbPixel);
+				} else {
+					fullGridPixels.push({
+						id: -(y * gridParams.width + x + 1),
+						x,
+						y,
+						isTaken: false,
+						ownerId: null,
+						nftId: null,
+						imageURL: null,
+						prompt: null,
+						style: null,
+						price: null,
+						isListed: false,
+						listingId: null,
+					});
+				}
+			}
+		}
+	}
 	useEffect(() => {
 		// Initialize gridParams or update them when gridSize changes
 		setGridParams({
@@ -60,8 +94,9 @@ export default function AIPixelCanvas() {
 	useEffect(() => {
 		if (gridParams) {
 			refetchPixelData();
+			refetchAllPixels();
 		}
-	}, [gridParams, refetchPixelData]);
+	}, [gridParams, refetchPixelData, refetchAllPixels]);
 
 	const handlePurchaseSuccess = useCallback(async () => {
 		console.log("Purchase successful, refreshing canvas data...");
@@ -69,8 +104,9 @@ export default function AIPixelCanvas() {
 		await fetchCanvasOverview();
 		if (gridParams) {
 			await refetchPixelData();
+			await refetchAllPixels();
 		}
-	}, [fetchCanvasOverview, refetchPixelData, gridParams]);
+	}, [fetchCanvasOverview, refetchPixelData, refetchAllPixels, gridParams]);
 
 	type PixelGridCell = {
 		id: number;
@@ -114,12 +150,12 @@ export default function AIPixelCanvas() {
 			<main className="flex flex-1 overflow-hidden">
 				<PixelGrid
 					gridSize={gridSize}
-					gridData={pixelsData || []}
+					gridData={fullGridPixels || []}
 					onCellClick={handleCellClick}
 					selectedSpace={selectedSpace}
 					soldPercentage={
 						canvasOverview
-							? canvasOverview.soldPixels / canvasOverview.totalPixels
+							? (canvasOverview.soldPixels / canvasOverview.totalPixels) * 100
 							: 0
 					}
 					currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}

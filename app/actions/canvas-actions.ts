@@ -212,6 +212,35 @@ export async function getCanvasSectionDataServerAction(data: {
 	}
 }
 
+/**
+ * Server Action: Retrieves all pixel data records from the database.
+ * WARNING: If the pixels table is very large, this could lead to performance issues
+ * due to large data transfer and server/client memory usage.
+ */
+export async function getAllGridDataServerAction(): Promise<PixelData[]> {
+	console.log("Server Action: Get all grid pixel data from database");
+	try {
+		const allPixels = await db
+			.select()
+			.from(pixels)
+			.orderBy(pixels.y, pixels.x); // Optional: order the results, e.g., by y then x coordinate
+
+		// Ensure the returned data conforms to PixelData[]
+		// This mapping is important if your database schema for numeric/decimal types (like price)
+		// needs explicit conversion to string for the PixelData type.
+		return allPixels.map((p) => ({
+			...p,
+			// Assuming price is stored as a type that needs conversion to string or null
+			// If price is already string | null in your db schema, this specific mapping for price might not be needed.
+			price: p.price ? String(p.price) : null,
+			// Add any other necessary transformations here if DB schema differs from PixelData
+		})) as PixelData[]; // Cast to PixelData[] assuming transformations align with the type
+	} catch (error) {
+		console.error("Error in getAllGridDataServerAction:", error);
+		return []; // Return empty array on error
+	}
+}
+
 // --- Other server actions from pixel-api.ts to be implemented ---
 
 /**

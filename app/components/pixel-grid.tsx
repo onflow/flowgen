@@ -1,20 +1,13 @@
 import React, { useState } from "react";
-import { PixelOnChainData } from "@/lib/pixel-types";
-type Pixel = {
-	id: number;
-	x: number;
-	y: number;
-	owner: string | null;
-	image: string | null;
-};
+import { PixelData } from "@/lib/pixel-types";
 
 type PixelGridProps = {
 	gridSize: number;
-	gridData: PixelOnChainData[];
-	onCellClick: (cell: PixelOnChainData) => void;
+	gridData: PixelData[];
+	onCellClick: (cell: any) => void;
 	soldPercentage: number;
 	currentPrice: number;
-	selectedSpace: PixelOnChainData | null;
+	selectedSpace: PixelData | null;
 };
 
 export default function PixelGrid({
@@ -23,8 +16,9 @@ export default function PixelGrid({
 	onCellClick,
 	soldPercentage,
 	currentPrice,
+	selectedSpace,
 }: PixelGridProps) {
-	const handleCellClick = (cell: PixelOnChainData) => {
+	const handleCellClick = (cell: any) => {
 		console.log("handleCellClick", cell);
 		onCellClick(cell);
 	};
@@ -51,21 +45,24 @@ export default function PixelGrid({
 						gridTemplateColumns: `repeat(${gridSize}, 25px)`,
 					}}
 				>
-					{gridData.map((cell, index) => {
-						return (
-							<div
-								key={`pixel-${cell.x}-${cell.y}`}
-								className={`h-6 w-6 border border-gray-200 ${
-									!cell.isTaken ? "cursor-pointer hover:bg-blue-100" : ""
-								}`}
-								style={{
-									backgroundColor: cell.isTaken ? "red" : "white",
-									backgroundSize: "cover",
-								}}
-								onClick={() => handleCellClick(cell)}
-							/>
-						);
-					})}
+					{gridData.map((cell) => (
+						<div
+							key={cell.id}
+							className={`h-6 w-6 border ${
+								cell.id === selectedSpace?.id
+									? "border-blue-500 border-2"
+									: "border-gray-200"
+							} ${!cell.ownerId ? "cursor-pointer hover:bg-blue-100" : ""}`}
+							style={{
+								backgroundColor: cell.ownerId ? "#f0f0f0" : "white",
+								backgroundImage: cell.imageURL
+									? `url(${cell.imageURL})`
+									: "none",
+								backgroundSize: "cover",
+							}}
+							onClick={() => handleCellClick(cell)}
+						/>
+					))}
 				</div>
 			</div>
 

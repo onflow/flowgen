@@ -2,7 +2,7 @@ import type { Config } from "drizzle-kit";
 import * as dotenv from "dotenv";
 
 dotenv.config({
-	path: ".env.local", // Ensure drizzle-kit loads .env.local
+	path: [".env.development.local", ".env.local", ".env"], // Ensure drizzle-kit loads .env.local
 });
 
 export default {

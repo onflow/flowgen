@@ -1,0 +1,42 @@
+---
+description: Project structure and technologies
+globs: 
+alwaysApply: false
+---
+# Project Technologies Overview
+
+This document outlines the primary technologies and frameworks used in this project.
+
+## Core Framework & Language
+- **Framework**: [Next.js](mdc:next.config.ts) using the App Router, see [app/](mdc:app)
+- **Language**: [TypeScript](mdc:tsconfig.json)
+
+## Package Management
+- **Manager**: [pnpm](mdc:pnpm-lock.yaml) (see [package.json](mdc:package.json))
+
+## Database & ORM
+- **ORM**: [Drizzle ORM](mdc:drizzle.config.ts) (see schema in [db/](mdc:db) and configuration in [drizzle/](mdc:drizzle))
+- **Database**: Neon DB (Serverless Postgres - as indicated by user, Drizzle connects to this)
+
+## Blockchain Integration
+- **Blockchain**: [Flow](mdc:flow.json)
+- **Smart Contract Language**: [Cadence](mdc:cadence)
+- **Scripts**: See [create_flow_accounts.sh](mdc:create_flow_accounts.sh)
+
+## Styling
+- **CSS Processing**: [PostCSS](mdc:postcss.config.mjs)  with Tailwind CSS
+
+## Version Control
+- **System**: [Git](mdc:.git) (see [.gitignore](mdc:.gitignore))
+
+## Deployment
+- **Platform**: [Vercel](mdc:.vercel)
+
+## Development Environment
+- **Editor Specific**:
+    - [VS Code](mdc:.vscode)
+    - [Cursor](mdc:.cursor)
+- **Other Tooling**:
+    - [.claude/](mdc:.claude) if needing to use claude code
+
+This rule helps in understanding the tech stack when working on the codebase.

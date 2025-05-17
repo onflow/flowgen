@@ -35,6 +35,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.1.0(react@19.1.0)
+      ws:
+        specifier: ^8.18.2
+        version: 8.18.2
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.6

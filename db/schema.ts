@@ -36,15 +36,19 @@ export const pixels = pgTable(
 			.$onUpdate(() => new Date()),
 	},
 	(table) => {
-		return {
+		return [
 			// Ensures that no two pixels can have the same x and y coordinates
-			uniqueCoordinates: uniqueIndex("unique_coordinates_idx").on(
-				table.x,
-				table.y
-			),
-		};
+			uniqueIndex("unique_coordinates_idx").on(table.x, table.y),
+		];
 	}
 );
+
+export const flowEventTracker = pgTable("flow_event_tracker", {
+	id: serial("id").primaryKey(),
+	eventType: text("event_type").notNull().unique(),
+	lastProcessedBlockHeight: integer("last_processed_block_height").notNull(),
+	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // If you plan to have other tables, you can define them here as well.
 // For example:

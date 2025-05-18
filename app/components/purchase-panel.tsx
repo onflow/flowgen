@@ -7,6 +7,7 @@ import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
 import { useAcquirePixelSpace } from "../hooks/pixel-hooks";
 import { PixelOnChainData } from "@/lib/pixel-types";
+import AIImageGenerator from "./ai-image-generator";
 
 type PurchasePanelProps = {
 	selectedSpace: PixelOnChainData | null;
@@ -22,7 +23,7 @@ export default function PurchasePanel({
 	onPurchaseSuccess,
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
-	const [style, setStyle] = useState("pixel-art");
+	const [style, setStyle] = useState("Pixel Art");
 	const [imageURL, setImageURL] = useState("");
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,10 +52,7 @@ export default function PurchasePanel({
 			return;
 		}
 
-		let imageURL = "";
-		await new Promise((resolve) => setTimeout(resolve, 1500));
-		imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
-		console.log("Simulated image generated:", imageURL);
+		setIsSubmitting(true);
 
 		try {
 			await acquire({
@@ -164,6 +162,23 @@ export default function PurchasePanel({
 					value={prompt}
 					onChange={(e) => setPrompt(e.target.value)}
 				/>
+
+				<AIImageGenerator
+					prompt={prompt}
+					style={style}
+					onImageGenerated={(url) => setImageURL(url)}
+				/>
+
+				{imageURL && (
+					<div className="mt-4 p-2 border border-gray-300 dark:border-gray-600 rounded-lg">
+						<p className="text-sm font-medium mb-2">Preview:</p>
+						<img
+							src={imageURL}
+							alt="AI Generated Preview"
+							className="rounded-lg max-h-60 mx-auto"
+						/>
+					</div>
+				)}
 			</div>
 
 			<div className="mb-6">
@@ -204,14 +219,13 @@ export default function PurchasePanel({
 					Cancel
 				</button>
 				<button
-					className={`bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${
-						isGenerating || isSubmitting || !prompt
-							? "opacity-50 cursor-not-allowed dark:opacity-60"
-							: ""
-					}`}
+					className={`bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${isGenerating || isSubmitting || !prompt || !imageURL
+						? "opacity-50 cursor-not-allowed dark:opacity-60"
+						: ""
+						}`}
 					onClick={handleGenerate}
 					disabled={
-						selectedSpace.isTaken || isGenerating || isSubmitting || !prompt
+						selectedSpace.isTaken || isGenerating || isSubmitting || !prompt || !imageURL
 					}
 				>
 					{isGenerating ? (
@@ -220,8 +234,8 @@ export default function PurchasePanel({
 						<span>Purchasing...</span>
 					) : (
 						<>
-							<Camera className="mr-1 h-4 w-4" />
-							Generate & Buy
+							<Wallet className="mr-1 h-4 w-4" />
+							Purchase
 						</>
 					)}
 				</button>

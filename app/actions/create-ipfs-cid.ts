@@ -4,10 +4,7 @@ import { CarWriter } from "@ipld/car/writer";
 import * as dagPb from "@ipld/dag-pb";
 import { sha256 } from "multiformats/hashes/sha2";
 import { CID } from "multiformats/cid";
-import * as raw from "multiformats/codecs/raw";
 import { UnixFS } from "ipfs-unixfs";
-import { Readable } from "stream";
-import fs from "fs";
 
 // We will use the global File object available in Node.js v18+
 // If you encounter issues or are on an older Node.js version, you might need:

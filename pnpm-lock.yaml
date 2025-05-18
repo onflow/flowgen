@@ -11,6 +11,9 @@ importers:
       '@ipld/car':
         specifier: ^5.4.1
         version: 5.4.1
+      '@ipld/dag-pb':
+        specifier: ^4.1.4
+        version: 4.1.4
       '@neondatabase/serverless':
         specifier: ^1.0.0
         version: 1.0.0

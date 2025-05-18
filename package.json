@@ -11,6 +11,7 @@
 	},
 	"dependencies": {
 		"@ipld/car": "^5.4.1",
+		"@ipld/dag-pb": "^4.1.4",
 		"@neondatabase/serverless": "^1.0.0",
 		"@onflow/fcl": "^1.17.0",
 		"@onflow/kit": "^0.1.0",

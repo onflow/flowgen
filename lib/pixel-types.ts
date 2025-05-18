@@ -5,7 +5,8 @@ export interface PixelData {
 	isTaken: boolean;
 	ownerId?: string | null; // User ID of the owner
 	nftId?: string | null; // Would be the NFT ID on Flow / unique ID for the pixel in Web2
-	imageURL?: string | null;
+	ipfsImageCID?: string | null;
+	imageMediaType?: string | null;
 	prompt?: string | null;
 	style?: string | null;
 	// For marketplace features later

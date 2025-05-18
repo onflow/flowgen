@@ -1,11 +1,13 @@
 ---
-description: Anything to do with Cadence
-globs: 
+description: 
+globs: *.cdc
 alwaysApply: false
 ---
 # Flow/Cadence Project: AI Pixel Canvas
 
 This rule outlines key aspects of the AI-Generated Million Dollar Homepage project on the Flow blockchain, focusing on Cadence 1.0 contracts, scripts, transactions, and testing patterns discussed.
+
+File names should be TitleCase for cadence .cdc files
 
 ## Core Contracts
 
@@ -31,6 +33,8 @@ This rule outlines key aspects of the AI-Generated Million Dollar Homepage proje
 
 *   **Named Imports are Preferred**: All Cadence files (contracts, scripts, transactions, tests) should use named imports for standard Flow contracts (e.g., `NonFungibleToken`, `FungibleToken`, `MetadataViews`, `ViewResolver`) and project-specific contracts (e.g., `FlowGenPixel`, `FlowGenCanvas`).
 *   **`flow.json` Configuration**: This file is critical for defining contract sources/addresses that back these named imports. It should be correctly configured for the target network (emulator, testnet, mainnet).
+* Cadence contracts should be imported using the syntax `import "NameOfContract"`. This is not what all the documentation says, but this is how it should be done
+* Use the cli to add a contract. e.g. `flow generate contract NameOfContract` this will add the contract to flow.json as well as generating the source file
 
 ## Key Cadence 1.0 Patterns & Transactions
 

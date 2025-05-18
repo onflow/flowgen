@@ -64,3 +64,13 @@ Run dev wallet
 ```bash
 flow dev-wallet
 ```
+
+## web3.storage dev setup
+
+1. Create an account on web3.storage
+2. Create a space
+3. Install the w3 cli
+4. login with the cli and call `w3 space use <did_of_space>`
+5. Follow https://docs.storacha.network/how-to/upload/#bring-your-own-delegations
+6. Save that proof as `W3_DELEGATED_PROOF` in your `.env.development.local`
+7. Save the key as

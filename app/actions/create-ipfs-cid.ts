@@ -1,9 +1,9 @@
 "use server";
 
-// import * as Client from "@web3-storage/w3up-client";
-// import { StoreMemory } from "@web3-storage/w3up-client/stores";
-// import * as Proof from "@web3-storage/w3up-client/proof";
-// import { Signer } from "@web3-storage/w3up-client/principal/ed25519";
+import * as Client from "@web3-storage/w3up-client";
+import { StoreMemory } from "@web3-storage/w3up-client/stores";
+import * as Proof from "@web3-storage/w3up-client/proof";
+import { Signer } from "@web3-storage/w3up-client/principal/ed25519";
 
 // We will use the global File object available in Node.js v18+
 // If you encounter issues or are on an older Node.js version, you might need:
@@ -11,7 +11,7 @@
 
 // A global variable to hold the w3up client instance.
 // This helps to reuse the client and its configuration across multiple calls in a server environment.
-//let w3upClientInstance: Client.Client | null = null;
+let w3upClientInstance: Client.Client | null = null;
 
 /**
  * Initializes and returns a w3up client instance.
@@ -19,7 +19,7 @@
  * with an agent that has been authorized (e.g., via `w3 agent import` or similar setup)
  * and has a current space selected.
  */
-/* async function getClient() {
+async function getClient() {
 	if (!w3upClientInstance) {
 		try {
 			console.log("Initializing w3up-client...");
@@ -60,7 +60,7 @@
 	}
 	return w3upClientInstance;
 }
- */
+
 export interface IpfsCidResponse {
 	cid: string;
 	mediaType: string;
@@ -77,11 +77,6 @@ export interface IpfsCidResponse {
 export async function createIpfsCidFromImageUrl(
 	imageUrl: string
 ): Promise<IpfsCidResponse> {
-	return {
-		cid: "bafkreigmv6myk6d552zskiiak3khsnr6qfhpkppqan4bbctwigyjlj7ybi",
-		mediaType: "image/png",
-	};
-	/* 
 	if (!imageUrl) {
 		throw new Error("Image URL must be provided.");
 	}
@@ -146,5 +141,5 @@ export async function createIpfsCidFromImageUrl(
 			JSON.stringify(error, null, 2)
 		);
 		throw new Error(errorMessage);
-	} */
+	}
 }

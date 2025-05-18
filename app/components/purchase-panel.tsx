@@ -154,9 +154,21 @@ export default function PurchasePanel({
 			</h2>
 			<div className="mb-4">
 				<div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-4 rounded-lg text-center">
-					<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
-						<Image className="mx-auto h-16 w-16" />
-					</div>
+					{!imageURL && (
+						<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
+							<Image className="mx-auto h-16 w-16" />
+						</div>
+					)}
+					{imageURL && (
+						<div>
+							<p className="text-sm font-medium mb-2">Preview:</p>
+							<img
+								src={imageURL}
+								alt="AI Generated Preview"
+								className="rounded-lg max-h-48 mx-auto"
+							/>
+						</div>
+					)}
 					<p className="text-sm text-gray-500 dark:text-gray-400">
 						Position: ({selectedSpace.x}, {selectedSpace.y})
 					</p>
@@ -173,40 +185,27 @@ export default function PurchasePanel({
 					value={prompt}
 					onChange={(e) => setPrompt(e.target.value)}
 				/>
-
+				<div className="mb-6">
+					<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						Style Preset
+					</label>
+					<select
+						className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
+						value={style}
+						onChange={(e) => setStyle(e.target.value)}
+					>
+						<option>Photorealistic</option>
+						<option>Pixel Art</option>
+						<option>Abstract</option>
+						<option>Cyberpunk</option>
+						<option>Minimalist</option>
+					</select>
+				</div>
 				<AIImageGenerator
 					prompt={prompt}
 					style={style}
 					onImageGenerated={(url) => setImageURL(url)}
 				/>
-
-				{imageURL && (
-					<div className="mt-4 p-2 border border-gray-300 dark:border-gray-600 rounded-lg">
-						<p className="text-sm font-medium mb-2">Preview:</p>
-						<img
-							src={imageURL}
-							alt="AI Generated Preview"
-							className="rounded-lg max-h-60 mx-auto"
-						/>
-					</div>
-				)}
-			</div>
-
-			<div className="mb-6">
-				<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-					Style Preset
-				</label>
-				<select
-					className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
-					value={style}
-					onChange={(e) => setStyle(e.target.value)}
-				>
-					<option>Photorealistic</option>
-					<option>Pixel Art</option>
-					<option>Abstract</option>
-					<option>Cyberpunk</option>
-					<option>Minimalist</option>
-				</select>
 			</div>
 
 			<div className="bg-blue-50 dark:bg-gray-800 p-4 rounded-lg mb-6">

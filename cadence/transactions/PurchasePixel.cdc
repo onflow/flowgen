@@ -1,7 +1,7 @@
-import FungibleToken from "FungibleToken"
-import NonFungibleToken from "NonFungibleToken"
-import FlowGenPixel from "FlowGenPixel"
-import FlowGenAiImage from "FlowGenAiImage"
+import "FungibleToken"
+import "NonFungibleToken"
+import "FlowGenPixel"
+import "FlowGenAiImage"
 
 transaction(
     // Pixel Coordinates

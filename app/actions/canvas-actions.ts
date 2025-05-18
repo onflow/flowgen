@@ -12,7 +12,6 @@ import {
 	CanvasOverview,
 } from "@/lib/pixel-types";
 import { fcl } from "@/lib/fcl-server-config"; // Import server-configured FCL
-import { createIpfsCidFromImageUrl } from "./create-ipfs-cid";
 
 // In-memory store to simulate a database.
 // The key is a string like "x_y" (e.g., "10_20").
@@ -26,13 +25,13 @@ export async function acquirePixelSpaceServerAction(data: {
 	y: number;
 	prompt: string;
 	style: string;
-	imageURL: string;
+	ipfsImageCID: string;
+	imageMediaType: string;
 	paymentAmount: number; // Consider how this might be used (e.g., for logging)
 	userId: string;
 }): Promise<PixelSpaceResult> {
-	const { x, y, prompt, style, imageURL, userId } = data;
+	const { x, y, prompt, style, ipfsImageCID, imageMediaType, userId } = data;
 
-	const cid = await createIpfsCidFromImageUrl(imageURL);
 	try {
 		// Check if the pixel is already taken
 		const existingPixel = await db
@@ -60,8 +59,8 @@ export async function acquirePixelSpaceServerAction(data: {
 				isTaken: true,
 				ownerId: userId,
 				nftId: newPixelId, // Ensure this is unique if used as a lookup key
-				ipfsImageCID: cid,
-				imageMediaType: "image/png",
+				ipfsImageCID,
+				imageMediaType,
 				prompt,
 				style,
 				// price, isListed, listingId will default or be null

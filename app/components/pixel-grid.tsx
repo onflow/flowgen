@@ -56,7 +56,7 @@ export default function PixelGrid({
 							style={{
 								backgroundColor: cell.ownerId ? "#f0f0f0" : "white",
 								backgroundImage: cell.ipfsImageCID
-									? `url(https://ipfs.io/ipfs/${cell.ipfsImageCID})`
+									? `url(https://${cell.ipfsImageCID}.ipfs.w3s.link)`
 									: "none",
 								backgroundSize: "cover",
 							}}

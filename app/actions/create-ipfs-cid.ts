@@ -61,6 +61,11 @@ async function getClient() {
 	return w3upClientInstance;
 }
 
+export interface IpfsCidResponse {
+	cid: string;
+	mediaType: string;
+}
+
 /**
  * Creates an IPFS CID from an image URL by uploading it to Web3.Storage using w3up-client.
  *
@@ -71,7 +76,7 @@ async function getClient() {
  */
 export async function createIpfsCidFromImageUrl(
 	imageUrl: string
-): Promise<string> {
+): Promise<IpfsCidResponse> {
 	if (!imageUrl) {
 		throw new Error("Image URL must be provided.");
 	}
@@ -97,27 +102,11 @@ export async function createIpfsCidFromImageUrl(
 				`Failed to fetch image from ${imageUrl}: ${response.status} ${response.statusText}`
 			);
 		}
-		console.log(`Fetching image from: ${imageUrl} - response ok`, response);
 
 		const imageBlob = await response.blob();
-		console.log(`Fetching image from: ${imageUrl} - response ok`, response);
 
-		let filename = "image-from-url"; // Default filename
-		try {
-			const urlPath = new URL(imageUrl).pathname;
-			const parts = urlPath.split("/");
-			if (parts.length > 0 && parts[parts.length - 1]) {
-				const decodedName = decodeURIComponent(parts[parts.length - 1]);
-				// Ensure filename is not empty after decoding
-				if (decodedName) filename = decodedName;
-			}
-		} catch (e) {
-			console.warn(
-				`Could not parse filename from URL "${imageUrl}", using default "${filename}".`
-			);
-		}
-		console.log("filename", filename);
-
+		let filename = "image"; // Default filename
+		const mediaType = imageBlob.type;
 		// Use the global File constructor (available in Node.js v18+)
 		const imageFile = new File([imageBlob], filename, { type: imageBlob.type });
 		console.log("imageFile", imageFile);
@@ -136,7 +125,7 @@ export async function createIpfsCidFromImageUrl(
 			);
 		}
 
-		return cid.toString(); // The CID object from w3up-client has a .toString() method
+		return { cid: cid.toString(), mediaType }; // The CID object from w3up-client has a .toString() method
 	} catch (error) {
 		console.error(
 			"Error during image processing or upload with w3up-client:",

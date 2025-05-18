@@ -29,6 +29,7 @@ import { useFlowMutate, useFlowQuery, useFlowTransaction } from "@onflow/kit";
 import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
 import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc"; // Re-add this import
 import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
+import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 
 // TODO: Replace placeholder addresses with actual configuration or environment variables
 const DEFAULT_FEE_RECEIVER_ADDRESS = "0xf8d6e0586b0a20c7"; // Example: Replace with your actual emulator service/fee account address
@@ -152,7 +153,6 @@ export function useAcquirePixelSpace({
 			prompt,
 			style,
 			imageURL,
-			imageMediaType,
 			flowPaymentAmount,
 			userId,
 		}: AcquirePixelParams) => {
@@ -160,12 +160,13 @@ export function useAcquirePixelSpace({
 			setFinalPixelData(null);
 			setIsTrackingAndUpdating(false); // Reset tracking state
 
+			const { cid, mediaType } = await createIpfsCidFromImageUrl(imageURL);
 			// Store params for the server action call that will happen in useEffect
 			setActionParams({
 				prompt,
 				style,
-				ipfsImageCID: imageURL,
-				imageMediaType,
+				ipfsImageCID: cid,
+				imageMediaType: mediaType,
 			});
 
 			console.log("Initiating Flow transaction for pixel purchase...");
@@ -173,7 +174,18 @@ export function useAcquirePixelSpace({
 			const finalPixelName = `Pixel Art #${x}-${y}`;
 			const finalDescription = prompt;
 			const finalAiCadencePrompt = prompt;
-			const finalIpfsImageCID = imageURL;
+			const finalIpfsImageCID = cid;
+
+			console.log("args", {
+				x,
+				y,
+				finalPixelName,
+				finalDescription,
+				finalAiCadencePrompt,
+				finalIpfsImageCID,
+				mediaType,
+				flowPaymentAmount,
+			});
 
 			const args = (arg: any, t: any): any[] => [
 				arg(x, t.UInt16),
@@ -182,10 +194,9 @@ export function useAcquirePixelSpace({
 				arg(finalDescription, t.String),
 				arg(finalAiCadencePrompt, t.String),
 				arg(finalIpfsImageCID, t.String),
-				arg(imageMediaType, t.String),
+				arg(mediaType, t.String),
 				arg(flowPaymentAmount, t.UFix64),
 			];
-
 			try {
 				// Mutate will set txIdFromHookData when the transaction is submitted
 				mutate({

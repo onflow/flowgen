@@ -56,8 +56,8 @@ export default function PurchasePanel({
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 		imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
 		console.log("Simulated image generated:", imageURL);
-		const ipfsCid = await createIpfsCidFromImageUrl(imageURL);
 		try {
+			setIsSubmitting(true);
 			await acquire({
 				x: selectedSpace.x,
 				y: selectedSpace.y,

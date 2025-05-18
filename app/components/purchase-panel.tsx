@@ -7,7 +7,7 @@ import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
 import { useAcquirePixelSpace, usePixelPrice } from "../hooks/pixel-hooks";
 import { PixelOnChainData } from "@/lib/pixel-types";
-import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
+import AIImageGenerator from "./ai-image-generator";
 
 type PurchasePanelProps = {
 	selectedSpace: PixelOnChainData | null;
@@ -23,7 +23,7 @@ export default function PurchasePanel({
 	onPurchaseSuccess,
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
-	const [style, setStyle] = useState("pixel-art");
+	const [style, setStyle] = useState("Pixel Art");
 	const [imageURL, setImageURL] = useState("");
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,10 +63,6 @@ export default function PurchasePanel({
 			return;
 		}
 
-		let imageURL = "";
-		await new Promise((resolve) => setTimeout(resolve, 1500));
-		imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
-		console.log("Simulated image generated:", imageURL);
 		try {
 			setIsSubmitting(true);
 			await acquire({
@@ -158,9 +154,21 @@ export default function PurchasePanel({
 			</h2>
 			<div className="mb-4">
 				<div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-4 rounded-lg text-center">
-					<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
-						<Image className="mx-auto h-16 w-16" />
-					</div>
+					{!imageURL && (
+						<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
+							<Image className="mx-auto h-16 w-16" />
+						</div>
+					)}
+					{imageURL && (
+						<div>
+							<p className="text-sm font-medium mb-2">Preview:</p>
+							<img
+								src={imageURL}
+								alt="AI Generated Preview"
+								className="rounded-lg max-h-48 mx-auto"
+							/>
+						</div>
+					)}
 					<p className="text-sm text-gray-500 dark:text-gray-400">
 						Position: ({selectedSpace.x}, {selectedSpace.y})
 					</p>
@@ -177,23 +185,27 @@ export default function PurchasePanel({
 					value={prompt}
 					onChange={(e) => setPrompt(e.target.value)}
 				/>
-			</div>
-
-			<div className="mb-6">
-				<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-					Style Preset
-				</label>
-				<select
-					className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
-					value={style}
-					onChange={(e) => setStyle(e.target.value)}
-				>
-					<option>Photorealistic</option>
-					<option>Pixel Art</option>
-					<option>Abstract</option>
-					<option>Cyberpunk</option>
-					<option>Minimalist</option>
-				</select>
+				<div className="mb-6">
+					<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						Style Preset
+					</label>
+					<select
+						className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
+						value={style}
+						onChange={(e) => setStyle(e.target.value)}
+					>
+						<option>Photorealistic</option>
+						<option>Pixel Art</option>
+						<option>Abstract</option>
+						<option>Cyberpunk</option>
+						<option>Minimalist</option>
+					</select>
+				</div>
+				<AIImageGenerator
+					prompt={prompt}
+					style={style}
+					onImageGenerated={(url) => setImageURL(url)}
+				/>
 			</div>
 
 			<div className="bg-blue-50 dark:bg-gray-800 p-4 rounded-lg mb-6">
@@ -220,13 +232,17 @@ export default function PurchasePanel({
 				</button>
 				<button
 					className={`bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${
-						isGenerating || isSubmitting || !prompt
+						isGenerating || isSubmitting || !prompt || !imageURL
 							? "opacity-50 cursor-not-allowed dark:opacity-60"
 							: ""
 					}`}
 					onClick={handleGenerate}
 					disabled={
-						selectedSpace.isTaken || isGenerating || isSubmitting || !prompt
+						selectedSpace.isTaken ||
+						isGenerating ||
+						isSubmitting ||
+						!prompt ||
+						!imageURL
 					}
 				>
 					{isGenerating ? (
@@ -235,8 +251,8 @@ export default function PurchasePanel({
 						<span>Purchasing...</span>
 					) : (
 						<>
-							<Camera className="mr-1 h-4 w-4" />
-							Generate & Buy
+							<Wallet className="mr-1 h-4 w-4" />
+							Purchase
 						</>
 					)}
 				</button>

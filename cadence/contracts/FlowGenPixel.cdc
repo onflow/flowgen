@@ -5,6 +5,7 @@ import "MetadataViews" // Assuming this import correctly brings ViewResolver's m
 import "FungibleToken"
 import "FlowGenAiImage" // Added import
 
+
 access(all) contract FlowGenPixel: NonFungibleToken {
 
     // Contract-level state

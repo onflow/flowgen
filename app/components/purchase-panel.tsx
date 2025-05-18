@@ -1,19 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
-import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Image, Camera, PlusSquare, Wallet, Loader2 } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
 import { useAcquirePixelSpace } from "../hooks/pixel-hooks";
 import { PixelOnChainData } from "@/lib/pixel-types";
 import AIImageGenerator from "./ai-image-generator";
+import CohesiveCanvasGenerator from "./cohesive-canvas-generator";
+
+// Define the CanvasPixel interface for cohesive generation
+interface CanvasPixel {
+	x: number;
+	y: number;
+	color: string;
+	prompt: string;
+	imageUrl?: string;
+}
 
 type PurchasePanelProps = {
 	selectedSpace: PixelOnChainData | null;
 	currentPrice: number;
 	onCancel: () => void;
 	onPurchaseSuccess: () => void;
+	// Add a prop to receive all existing pixels data
+	existingPixels?: PixelOnChainData[];
 };
 
 export default function PurchasePanel({
@@ -21,12 +33,15 @@ export default function PurchasePanel({
 	currentPrice,
 	onCancel,
 	onPurchaseSuccess,
+	existingPixels = [], // Default to empty array if not provided
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
 	const [style, setStyle] = useState("Pixel Art");
 	const [imageURL, setImageURL] = useState("");
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [cohesiveImageUrl, setCohesiveImageUrl] = useState<string | null>(null);
+	const [isCohesiveGenerating, setIsCohesiveGenerating] = useState(false);
 	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
 
 	const {
@@ -36,13 +51,87 @@ export default function PurchasePanel({
 	} = useAcquirePixelSpace({
 		onSuccess: () => {
 			console.log("Pixel acquired successfully");
-
 			onPurchaseSuccess();
 		},
 		onError: (error) => {
 			console.error("Error acquiring pixel:", error);
 		},
 	});
+
+	// Function to convert PixelOnChainData to CanvasPixel format
+	const getAllExistingPixels = (): CanvasPixel[] => {
+		// Filter out pixels that aren't taken
+		return existingPixels
+			.filter(pixel => pixel.isTaken)
+			.map(pixel => {
+				// Convert each PixelOnChainData to CanvasPixel format
+				// Use default values for missing properties
+				return {
+					x: pixel.x,
+					y: pixel.y,
+					color: "#FFFFFF", // Default color
+					prompt: "Existing pixel", // Default prompt since it doesn't exist on PixelOnChainData
+					imageUrl: pixel.imageUrl || undefined // Default to undefined if property doesn't exist
+				};
+			});
+	};
+
+	// Function to generate cohesive canvas with all pixels
+	const generateCohesiveCanvas = () => {
+		if (!selectedSpace || !imageURL) {
+			console.error("No selected space or image URL");
+			return;
+		}
+
+		setIsCohesiveGenerating(true);
+
+		// Get all existing pixels plus the new one being created
+		const allPixelsForCohesive = [
+			...getAllExistingPixels(),
+			// Add the current pixel being created
+			{
+				x: selectedSpace.x,
+				y: selectedSpace.y,
+				color: "#FFFFFF",
+				prompt: prompt || "Pixel art",
+				imageUrl: imageURL
+			}
+		];
+
+		// Call the API to generate a cohesive canvas
+		fetch('/api/generate-cohesive-canvas', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				existingPixels: allPixelsForCohesive,
+				canvasWidth: 64,
+				canvasHeight: 64,
+				newPixel: {
+					x: selectedSpace.x,
+					y: selectedSpace.y,
+					prompt: prompt,
+					imageUrl: imageURL
+				}
+			}),
+		})
+			.then(response => response.json())
+			.then(data => {
+				if (data.imageUrl) {
+					console.log("Cohesive canvas generated:", data.imageUrl);
+					setCohesiveImageUrl(data.imageUrl);
+				} else {
+					console.error("No image URL returned");
+				}
+			})
+			.catch(error => {
+				console.error("Error generating cohesive canvas:", error);
+			})
+			.finally(() => {
+				setIsCohesiveGenerating(false);
+			});
+	};
 
 	const handleGenerate = async () => {
 		if (!selectedSpace || !user.loggedIn || !user.addr) {
@@ -73,6 +162,7 @@ export default function PurchasePanel({
 		}
 	};
 
+	// Rest of your component code...
 	if (!selectedSpace) {
 		return (
 			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
@@ -86,41 +176,7 @@ export default function PurchasePanel({
 				</p>
 			</div>
 		);
-	} /* else if (selectedSpace.ownerId === user?.addr) {
-		return (
-			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-				<h3 className="text-lg font-medium mb-1">You already own this space</h3>
-				<div className="mb-4">
-					<div className="bg-white border border-gray-300 p-4 rounded-lg text-center">
-						<div className="text-6xl mb-2 text-gray-400">
-							<img
-								src={selectedSpace.image || ""}
-								alt="Selected space"
-								width={64}
-								height={64}
-								className="mx-auto h-16 w-16"
-							/>
-						</div>
-						<p className="text-sm text-gray-500">
-							Position: ({selectedSpace.x}, {selectedSpace.y})
-						</p>
-					</div>
-				</div>
-			</div>
-		);
-	} else if (selectedSpace.owner) {
-		return (
-			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-				<h3 className="text-lg font-medium mb-1">This space is already owned by {selectedSpace.owner}</h3>
-				<div className="text-6xl mb-2 text-gray-400">
-					<img src={selectedSpace.image || ''} alt="Selected space" width={64} height={64} className="mx-auto h-16 w-16" />
-				</div>
-				<p className="text-sm text-gray-500">
-					Position: ({selectedSpace.x}, {selectedSpace.y})
-				</p>
-			</div>
-		);
-	} */
+	}
 
 	if (!user.loggedIn) {
 		return (
@@ -209,6 +265,39 @@ export default function PurchasePanel({
 					<span>{currentPrice.toFixed(2)} FLOW</span>
 				</div>
 			</div>
+
+			{/* Generate Cohesive Canvas Button - shows after image is generated */}
+			{imageURL && !selectedSpace.isTaken && (
+				<div className="mb-6">
+					<button
+						onClick={generateCohesiveCanvas}
+						disabled={isCohesiveGenerating}
+						className={`w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${isCohesiveGenerating ? "opacity-50 cursor-not-allowed" : ""
+							}`}
+					>
+						{isCohesiveGenerating ? (
+							<>
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								Generating Cohesive Canvas...
+							</>
+						) : (
+							"Generate Cohesive Canvas"
+						)}
+					</button>
+				</div>
+			)}
+
+			{/* Display Cohesive Canvas if available */}
+			{cohesiveImageUrl && (
+				<div className="mb-6 p-2 border border-gray-300 dark:border-gray-600 rounded-lg">
+					<p className="text-sm font-medium mb-2">Cohesive Canvas Preview:</p>
+					<img
+						src={cohesiveImageUrl}
+						alt="Cohesive Canvas Preview"
+						className="rounded-lg w-full"
+					/>
+				</div>
+			)}
 
 			<div className="grid grid-cols-2 gap-3">
 				<button

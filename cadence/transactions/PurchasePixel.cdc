@@ -17,29 +17,30 @@ transaction(
     paymentAmount: UFix64
 ) {
     // --- Constants for Transaction --- 
-    // These were moved into prepare block 
+    // PRICE_PER_PIXEL and FLOWGEN_PRIMARY_SALE_RECEIVER_ADDRESS are now managed by FlowGenPixel contract
     // --- End Constants --- 
 
     let paymentVault: @{FungibleToken.Vault}
     let buyerPixelCollection: &{NonFungibleToken.Receiver}
     let buyerAiImageCollection: &{NonFungibleToken.Receiver}
-    let primarySaleReceiver: &{FungibleToken.Receiver}
+    // let primarySaleReceiver: &{FungibleToken.Receiver} // Removed, handled by FlowGenPixel contract
 
     let buyerAddress: Address
 
     prepare(buyerAcct: auth(Storage, Capabilities) &Account) { 
         // --- Constants defined in prepare block --- 
-        let PRICE_PER_PIXEL: UFix64 = 10.0 // Example: 10.0 FLOW. TODO: Make this configurable or read from contract if needed.
-        let FLOWGEN_PRIMARY_SALE_RECEIVER_ADDRESS: Address = 0xf8d6e0586b0a20c7 // TODO: REPLACE with actual FlowGen primary sale receiver address
+        // PRICE_PER_PIXEL is now fetched from FlowGenPixel contract or validated against it.
+        // FLOWGEN_PRIMARY_SALE_RECEIVER_ADDRESS is handled by FlowGenPixel contract.
         // --- End Constants --- 
 
-        log("PurchasePixel V2 - PREPARE: Starting") 
+        log("PurchasePixel V3 - PREPARE: Starting") 
 
         self.buyerAddress = buyerAcct.address
 
-        // 0. Price Check
-        if paymentAmount != PRICE_PER_PIXEL {
-            panic("Payment amount (".concat(paymentAmount.toString()).concat(") does not match the current price (").concat(PRICE_PER_PIXEL.toString()).concat(")."))
+        // 0. Price Check - Validate against FlowGenPixel.getCurrentPixelPrice(x: x, y: y)
+        let expectedPrice = FlowGenPixel.getCurrentPixelPrice(x: x, y: y)
+        if paymentAmount != expectedPrice {
+            panic("Payment amount (".concat(paymentAmount.toString()).concat(") does not match the current dynamic price (").concat(expectedPrice.toString()).concat(")."))
         }
 
         // 1. Check if Pixel is already minted (using FlowGenPixel contract directly)
@@ -75,21 +76,21 @@ transaction(
         self.paymentVault <- mainFlowVault.withdraw(amount: paymentAmount)
         log("PREPARE: Withdrew payment from buyer's vault.")
 
-        // 5. Get Primary Sale Receiver Capability
-        self.primarySaleReceiver = getAccount(FLOWGEN_PRIMARY_SALE_RECEIVER_ADDRESS)
-            .capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-            .borrow() ?? panic("Could not borrow receiver capability for primary sale receiver.")
-        log("PREPARE: Borrowed primary sale receiver capability.")
+        // 5. Get Primary Sale Receiver Capability - NO LONGER NEEDED HERE
+        // self.primarySaleReceiver = getAccount(FLOWGEN_PRIMARY_SALE_RECEIVER_ADDRESS)
+        //     .capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
+        //     .borrow() ?? panic("Could not borrow receiver capability for primary sale receiver.")
+        // log("PREPARE: Borrowed primary sale receiver capability.")
 
-        log("PurchasePixel V2 - PREPARE: Finished")
+        log("PurchasePixel V3 - PREPARE: Finished")
     }
 
     execute {
-        log("PurchasePixel V2 - EXECUTE: Starting")
+        log("PurchasePixel V3 - EXECUTE: Starting")
 
-        // 1. Deposit Payment to Primary Sale Receiver
-        self.primarySaleReceiver.deposit(from: <-self.paymentVault)
-        log("EXECUTE: Payment deposited to primary sale receiver.")
+        // 1. Deposit Payment to Primary Sale Receiver - NO LONGER DONE DIRECTLY HERE
+        // self.primarySaleReceiver.deposit(from: <-self.paymentVault)
+        // log("EXECUTE: Payment deposited to primary sale receiver.")
 
         // 2. Mint FlowGenAiImage.NFT by calling public contract function
         // The buyer (signer) is the creator of the artwork
@@ -111,10 +112,12 @@ transaction(
         log("EXECUTE: Deposited FlowGenAiImage.NFT to buyer's AiImage collection.")
 
         // 4. Mint FlowGenPixel.NFT by calling public contract function
+        // Payment is now passed to the public mint function
         let newPixel <- FlowGenPixel.publicMintPixelNFT(
             x: x,
             y: y,
-            aiImageNftID: newAiImageNftID
+            aiImageNftID: newAiImageNftID,
+            payment: <-self.paymentVault // Pass the payment vault here
         )
         log("EXECUTE: FlowGenPixel.NFT minted with ID: ".concat(newPixel.id.toString()))
 
@@ -123,6 +126,6 @@ transaction(
         self.buyerPixelCollection.deposit(token: <-newPixel)
         log("EXECUTE: Deposited FlowGenPixel.NFT to buyer's Pixel collection.")
 
-        log("PurchasePixel V2 - EXECUTE: Finished Successfully!")
+        log("PurchasePixel V3 - EXECUTE: Finished Successfully!")
     }
 }

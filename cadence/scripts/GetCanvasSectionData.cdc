@@ -1,5 +1,5 @@
 // cadence/scripts/GetCanvasSectionData.cdc
-import "FlowGenCanvas"
+import "FlowGenPixel"
 
 // This struct returns basic, reliably queryable info for each pixel in a section.
 access(all) struct BasicPixelInfo {
@@ -24,8 +24,8 @@ access(all) struct BasicPixelInfo {
 access(all) fun main(startX: UInt16, startY: UInt16, width: UInt16, height: UInt16): [BasicPixelInfo] {
     let results: [BasicPixelInfo] = []
 
-    let canvasTotalWidth = FlowGenCanvas.canvasWidth
-    let canvasTotalHeight = FlowGenCanvas.canvasHeight
+    let canvasTotalWidth: UInt16 = FlowGenPixel.CANVAS_WIDTH
+    let canvasTotalHeight: UInt16 = FlowGenPixel.CANVAS_HEIGHT
 
     var loopEndX = startX + width
     if loopEndX > canvasTotalWidth {
@@ -41,10 +41,10 @@ access(all) fun main(startX: UInt16, startY: UInt16, width: UInt16, height: UInt
     while currentY < loopEndY {
         var currentX = startX
         while currentX < loopEndX {
-            let isTaken = FlowGenCanvas.isPixelTaken(x: currentX, y: currentY)
+            let isTaken = FlowGenPixel.isPixelMinted(x: currentX, y: currentY)
             var currentNftId: UInt64? = nil
             if isTaken {
-                currentNftId = FlowGenCanvas.getNFTIDForPixel(x: currentX, y: currentY)
+                currentNftId = FlowGenPixel.getPixelNFTID(x: currentX, y: currentY)
             }
 
             results.append(

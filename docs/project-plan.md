@@ -45,7 +45,6 @@ This project reimagines the classic "Million Dollar Homepage" concept with two k
   - `PurchasePixel.cdc` (Primary Sale): For users to pay a fee to have a new `FlowGenPixel.NFT` minted for a specific coordinate, including AI art metadata and creator royalty setup. This transaction interacts with `FlowGenPixel.NFTMinter`.
   - Future marketplace transactions: list, unlist, buy (interacting with `NFTStorefrontV2`).
 - Key scripts:
-  - `GetCanvasState.cdc`: To retrieve overall canvas statistics.
   - `GetPixelInfo.cdc`: To get information about a specific pixel (taken status, NFT ID).
   - Scripts to view marketplace listings.
 

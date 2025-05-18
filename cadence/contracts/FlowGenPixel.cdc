@@ -8,8 +8,17 @@ import "FlowGenAiImage" // Added import
 access(all) contract FlowGenPixel: NonFungibleToken {
 
     // Contract-level state
-    access(all) var totalSupply: UInt64
-    access(all) let CanvasResolution: String
+    access(all) var totalPixelsSold: UInt64
+    access(all) let CANVAS_WIDTH: UInt16
+    access(all) let CANVAS_HEIGHT: UInt16
+    access(all) let MAX_SUPPLY: UInt64
+    access(all) let BASE_PRICE: UFix64
+    access(all) let MID_TIER_PRICE_MULTIPLIER: UFix64
+    access(all) let CENTER_TIER_PRICE_MULTIPLIER: UFix64
+    access(all) let MID_TIER_THRESHOLD_PERCENT: UFix64
+    access(all) let EDGE_TIER_THRESHOLD_PERCENT: UFix64
+    access(all) let SCARCITY_PREMIUM_FACTOR: UFix64
+    access(all) let PIXEL_SALE_FEE_RECEIVER_ADDRESS: Address
 
     // Paths
     access(all) let CollectionStoragePath: StoragePath
@@ -138,7 +147,8 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     }
 
     access(all) resource NFTMinter {
-        access(all) fun mintPixelNFT(
+        // This internal minting function no longer handles payment directly or recipient
+        access(all) fun internalMintPixelNFT(
             x: UInt16,
             y: UInt16,
             aiImageNftID: UInt64
@@ -156,7 +166,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
             
             let nftID = newPixelNFT.id
             FlowGenPixel.registeredPixelKeys[pixelKeyStr] = nftID
-            FlowGenPixel.totalSupply = FlowGenPixel.totalSupply + 1
+            FlowGenPixel.totalPixelsSold = FlowGenPixel.totalPixelsSold + 1
             
             emit PixelMinted(id: nftID, x: x, y: y, aiImageNftID: aiImageNftID)
             return <-newPixelNFT
@@ -165,24 +175,82 @@ access(all) contract FlowGenPixel: NonFungibleToken {
 
     // --- Public Minting Function ---
     access(all) fun publicMintPixelNFT(
-        // recipientCollection: &{NonFungibleToken.Receiver}, // Deposit handled by transaction
         x: UInt16,
         y: UInt16,
-        aiImageNftID: UInt64
+        aiImageNftID: UInt64,
+        payment: @{FungibleToken.Vault}
     ): @NFT {
+        // 1. Validate Payment
+        let currentPrice = FlowGenPixel.getCurrentPixelPrice(x: x, y: y)
+        if payment.balance != currentPrice {
+            panic("Payment amount (".concat(payment.balance.toString()).concat(") does not match the required price (").concat(currentPrice.toString()).concat(")."))
+        }
+
+        // 2. Deposit Payment
+        let feeReceiver = getAccount(FlowGenPixel.PIXEL_SALE_FEE_RECEIVER_ADDRESS)
+            .capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
+            .borrow()
+            ?? panic("Could not borrow FungibleToken.Receiver for PIXEL_SALE_FEE_RECEIVER_ADDRESS")
+        
+        feeReceiver.deposit(from: <-payment)
+
+        // 3. Mint Pixel using internal minter
         let minter = self.account.storage.borrow<&NFTMinter>(from: self.MinterStoragePath)
             ?? panic("Could not borrow NFTMinter from contract storage")
         
-        let newNFT <- minter.mintPixelNFT( // This function already returns @NFT now
+        let newNFT <- minter.internalMintPixelNFT( // Call the renamed internal function
             x: x,
             y: y,
             aiImageNftID: aiImageNftID
         )
-        // The deposit is now handled by the caller (transaction)
-        // recipientCollection.deposit(token: <-newNFT)
-        return <-newNFT // Return the NFT to be deposited by the transaction
+        
+        return <-newNFT
     }
     // --- End Public Minting Function ---
+
+    // --- Pricing Algorithm Function ---
+    access(all) view fun getCurrentPixelPrice(x: UInt16, y: UInt16): UFix64 {
+        // Calculate center coordinates (as UFix64 for precision in division)
+        let centerX = UFix64(self.CANVAS_WIDTH) / 2.0
+        let centerY = UFix64(self.CANVAS_HEIGHT) / 2.0
+
+        // Calculate Manhattan distance from center
+        let xUFix64 = UFix64(x)
+        let yUFix64 = UFix64(y)
+        
+        let absDx = (xUFix64 > centerX) ? (xUFix64 - centerX) : (centerX - xUFix64)
+        let absDy = (yUFix64 > centerY) ? (yUFix64 - centerY) : (centerY - yUFix64)
+        let manhattanDist = absDx + absDy
+
+        // Calculate max possible Manhattan distance from center (e.g., from center to a corner or farthest edge midpoint)
+        // For simplicity, to (0,0) from center, or (width, height) from center. Max is to a corner.
+        // Max manhattan distance is to a corner from the center: centerX + centerY (if center is 0,0 of a quadrant)
+        let maxManhattanDist = centerX + centerY
+
+        var locationPriceMultiplier = 1.0 // Default to base multiplier (edge tier)
+        if maxManhattanDist > 0.0 { // Avoid division by zero if canvas is 1x1 or 0x0
+            let normalizedManhattanDist = manhattanDist / maxManhattanDist
+            if normalizedManhattanDist <= self.MID_TIER_THRESHOLD_PERCENT { // Center Tier
+                locationPriceMultiplier = self.CENTER_TIER_PRICE_MULTIPLIER
+            } else if normalizedManhattanDist <= self.EDGE_TIER_THRESHOLD_PERCENT { // Mid Tier
+                locationPriceMultiplier = self.MID_TIER_PRICE_MULTIPLIER
+            } // Else: Edge Tier, multiplier remains 1.0 (implicitly for BASE_PRICE)
+        }
+        
+        let priceBasedOnLocation = self.BASE_PRICE * locationPriceMultiplier
+
+        // Calculate Scarcity Multiplier
+        var scarcityMultiplier = 1.0
+        if self.MAX_SUPPLY > 0 { // Avoid division by zero
+            let percentageSold = UFix64(self.totalPixelsSold) / UFix64(self.MAX_SUPPLY)
+            // Linear increase: starts at 1.0, goes up to SCARCITY_PREMIUM_FACTOR
+            scarcityMultiplier = 1.0 + ((self.SCARCITY_PREMIUM_FACTOR - 1.0) * percentageSold)
+        }
+
+        let finalPrice = priceBasedOnLocation * scarcityMultiplier
+        return finalPrice
+    }
+    // --- End Pricing Algorithm Function ---
 
     // Required by NonFungibleToken (via ViewResolver)
     access(all) view fun getContractViews(resourceType: Type?): [Type] {
@@ -212,7 +280,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                 )
                 return MetadataViews.NFTCollectionDisplay(
                     name: "FlowGen Pixel Collection",
-                    description: "A collection of AI-generated pixels on the FlowGen Canvas. Resolution: ".concat(self.CanvasResolution),
+                    description: "A collection of AI-generated pixels on the FlowGen Canvas. Resolution: ".concat(self.CANVAS_WIDTH.toString()).concat("x").concat(self.CANVAS_HEIGHT.toString()),
                     externalURL: MetadataViews.ExternalURL("https://flowgen.art/collection"),
                     squareImage: media,
                     bannerImage: media,
@@ -225,8 +293,19 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     }
 
     init() {
-        self.totalSupply = 0
-        self.CanvasResolution = "1024x1024" // Default
+        self.totalPixelsSold = 0
+        self.CANVAS_WIDTH = 16 // Example
+        self.CANVAS_HEIGHT = 16 // Example
+        self.MAX_SUPPLY = UInt64(self.CANVAS_WIDTH) * UInt64(self.CANVAS_HEIGHT)
+
+        self.BASE_PRICE = 1.0 // e.g., 1 FLOW for edge pixels
+        self.MID_TIER_PRICE_MULTIPLIER = 2.0
+        self.CENTER_TIER_PRICE_MULTIPLIER = 4.0
+        self.MID_TIER_THRESHOLD_PERCENT = 0.33 // Inner 33% of (max) Manhattan distance = Center Tier
+        self.EDGE_TIER_THRESHOLD_PERCENT = 0.66 // Next 33% (up to 66% of max) = Mid Tier, >66% = Edge Tier
+        self.SCARCITY_PREMIUM_FACTOR = 3.0 // Price can triple due to scarcity
+
+        self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = 0xf8d6e0586b0a20c7 // TODO: REPLACE with actual primary sale fee receiver for pixels
         self.registeredPixelKeys = {}
 
         // Path initializations (consider versioning paths, e.g., "V1")
@@ -250,5 +329,10 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     access(all) view fun getPixelNFTID(x: UInt16, y: UInt16): UInt64? {
         let pixelKeyStr = x.toString().concat(",").concat(y.toString())
         return self.registeredPixelKeys[pixelKeyStr]
+    }
+
+    // Public function to get the total number of pixels sold
+    access(all) view fun getTotalPixelsSold(): UInt64 {
+        return self.totalPixelsSold
     }
 }

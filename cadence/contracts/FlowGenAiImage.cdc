@@ -150,8 +150,15 @@ contract FlowGenAiImage: NonFungibleToken {
     // Allows a caller to borrow a reference to a specific NFT
     /// so that they can get the metadata views for the specific NFT
     access(all) view fun borrowNFT(_ id: UInt64): &{NonFungibleToken.NFT}? {
-      return &self.ownedNFTs[id]
+          return &self.ownedNFTs[id]
     }
+    // Implementation for AIImageNFTCollectionPublic
+    access(all) view fun borrowAIImageNFT(id: UInt64): &FlowGenAiImage.NFT? {
+        let nftRefInterface: &{NonFungibleToken.NFT}? = self.borrowNFT(id) // This now returns &NonFungibleToken.NFT (non-optional)
+        // Attempt to downcast the interface reference to the concrete type reference
+        return nftRefInterface as? &FlowGenAiImage.NFT
+    }
+
   }
   access(all) resource NFTMinter {  
     access(all) fun createNFT(name: String, description: String, aiPrompt: String, ipfsImageCID: String, imageMediaType: String, creatorAddress: Address): @NFT {

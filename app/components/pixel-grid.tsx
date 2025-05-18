@@ -55,8 +55,8 @@ export default function PixelGrid({
 							} ${!cell.ownerId ? "cursor-pointer hover:bg-blue-100" : ""}`}
 							style={{
 								backgroundColor: cell.ownerId ? "#f0f0f0" : "white",
-								backgroundImage: cell.imageURL
-									? `url(${cell.imageURL})`
+								backgroundImage: cell.ipfsImageCID
+									? `url(https://ipfs.io/ipfs/${cell.ipfsImageCID})`
 									: "none",
 								backgroundSize: "cover",
 							}}

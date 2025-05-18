@@ -57,17 +57,18 @@ export function useInitializeUserProfile() {
 interface AcquirePixelParams {
 	x: number;
 	y: number;
-	prompt: string; // Used for AI prompt and Cadence description/aiPrompt
+	prompt: string; // Used for AI prompt and Cadence aiPrompt & artworkDescription
 	style: string; // For backend
-	imageURL: string; // For backend & Cadence thumbnail/imageURI/pixelArtURI
+	imageURL: string; // For backend & Cadence ipfsImageCID
+	imageMediaType: string; // For Cadence imageMediaType
 	flowPaymentAmount: string; // UFix64 string for Cadence paymentAmount
 	backendPaymentAmount: number; // For backend server action
-	userId: string; // User's Flow address, for Cadence creatorAddress & backend ownerId
+	userId: string; // User's Flow address, for backend ownerId (signer is implicit buyer for Cadence)
 
-	// Optional: Allow overriding if these constants aren't sufficient for some edge case
-	feeReceiverAddress?: string;
-	royaltyRate?: string;
-	pixelContractAdminAddress?: string;
+	// These are no longer direct Cadence script args but kept for potential future use or consistency
+	// feeReceiverAddress?: string; // Handled by contract
+	// royaltyRate?: string; // Handled by contract
+	// pixelContractAdminAddress?: string; // Handled by contract
 }
 
 // Hook for acquiring pixel space (with Flow transaction)
@@ -101,7 +102,8 @@ export function useAcquirePixelSpace({
 					txId: txId,
 					prompt: actionParams?.prompt || "",
 					style: actionParams?.style || "",
-					imageURL: actionParams?.imageURL || "",
+					ipfsImageCID: actionParams?.ipfsImageCID || "",
+					imageMediaType: actionParams?.imageMediaType || "",
 				})
 					.then((result) => {
 						setFinalPixelData(result);
@@ -150,44 +152,38 @@ export function useAcquirePixelSpace({
 			prompt,
 			style,
 			imageURL,
+			imageMediaType,
 			flowPaymentAmount,
 			userId,
-			feeReceiverAddress = DEFAULT_FEE_RECEIVER_ADDRESS,
-			royaltyRate = DEFAULT_ROYALTY_RATE,
-			pixelContractAdminAddress,
 		}: AcquirePixelParams) => {
 			setCombinedError(null);
 			setFinalPixelData(null);
 			setIsTrackingAndUpdating(false); // Reset tracking state
 
 			// Store params for the server action call that will happen in useEffect
-			setActionParams({ prompt, style, imageURL });
+			setActionParams({
+				prompt,
+				style,
+				ipfsImageCID: imageURL,
+				imageMediaType,
+			});
 
 			console.log("Initiating Flow transaction for pixel purchase...");
 
 			const finalPixelName = `Pixel Art #${x}-${y}`;
 			const finalDescription = prompt;
-			const finalThumbnailURL = imageURL;
 			const finalAiCadencePrompt = prompt;
-			const finalImageURI = imageURL;
-			const finalPixelArtURI = imageURL;
-			const finalImageHash = `image-hash-${Date.now()}`; // Consider a more robust hashing
+			const finalIpfsImageCID = imageURL;
 
 			const args = (arg: any, t: any): any[] => [
 				arg(x, t.UInt16),
 				arg(y, t.UInt16),
 				arg(finalPixelName, t.String),
 				arg(finalDescription, t.String),
-				arg(finalThumbnailURL, t.String),
 				arg(finalAiCadencePrompt, t.String),
-				arg(finalImageURI, t.String),
-				arg(finalPixelArtURI, t.String),
-				arg(finalImageHash, t.String),
+				arg(finalIpfsImageCID, t.String),
+				arg(imageMediaType, t.String),
 				arg(flowPaymentAmount, t.UFix64),
-				arg(userId, t.Address), // creatorAddress for Cadence, matches current user
-				arg(royaltyRate, t.UFix64),
-				arg(pixelContractAdminAddress || userId, t.Address),
-				arg(feeReceiverAddress, t.Address),
 			];
 
 			try {

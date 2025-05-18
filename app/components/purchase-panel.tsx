@@ -7,6 +7,7 @@ import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
 import { useAcquirePixelSpace } from "../hooks/pixel-hooks";
 import { PixelOnChainData } from "@/lib/pixel-types";
+import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 
 type PurchasePanelProps = {
 	selectedSpace: PixelOnChainData | null;
@@ -55,7 +56,7 @@ export default function PurchasePanel({
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 		imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
 		console.log("Simulated image generated:", imageURL);
-
+		const ipfsCid = await createIpfsCidFromImageUrl(imageURL);
 		try {
 			await acquire({
 				x: selectedSpace.x,
@@ -63,6 +64,7 @@ export default function PurchasePanel({
 				prompt: prompt,
 				style: style,
 				imageURL: imageURL,
+				imageMediaType: "image/jpeg",
 				flowPaymentAmount: currentPrice.toFixed(8),
 				backendPaymentAmount: currentPrice + 0.01,
 				userId: user.addr,

@@ -3,6 +3,7 @@
 import { create, Client } from "@web3-storage/w3up-client";
 import { parse } from "@web3-storage/w3up-client/proof";
 import { Signer } from "@web3-storage/w3up-client/principal/ed25519";
+import { StoreMemory } from "@web3-storage/w3up-client/stores";
 
 // We will use the global File object available in Node.js v18+
 // If you encounter issues or are on an older Node.js version, you might need:
@@ -24,24 +25,28 @@ async function getClient() {
 			console.log("Initializing w3up-client...");
 			// Create will attempt to load the default agent and its store.
 			// For server-side, this agent needs to be pre-configured.
-			w3upClientInstance = await create();
+			const DELEGATION_KEY = process.env.W3_DELEGATED_KEY;
+
+			if (!DELEGATION_KEY) {
+				throw new Error("W3_DELEGATED_KEY is not set");
+			}
+
+			const principal = Signer.parse(DELEGATION_KEY);
+			const store = new StoreMemory();
+			w3upClientInstance = await create({
+				principal,
+				store,
+			});
 
 			// It's good practice to check if the client is usable, e.g., by verifying a space.
-			const currentSpace = await w3upClientInstance.currentSpace();
-			if (currentSpace) {
-				console.log(
-					`w3up-client initialized. Current space: ${currentSpace.did()}`
-				);
-			} else {
-				const DELEGATION_PROOF = process.env.WC_DELEGATION_PROOF;
-				if (!DELEGATION_PROOF) {
-					throw new Error("WC_DELEGATION_PROOF is not set");
-				}
-
-				const proof = await parse(DELEGATION_PROOF);
-				const space = await w3upClientInstance.addSpace(proof);
-				await w3upClientInstance.setCurrentSpace(space.did());
+			const DELEGATION_PROOF = process.env.W3_DELEGATED_PROOF;
+			if (!DELEGATION_PROOF) {
+				throw new Error("W3_DELEGATED_PROOF is not set");
 			}
+
+			const proof = await parse(DELEGATION_PROOF);
+			const space = await w3upClientInstance.addSpace(proof);
+			await w3upClientInstance.setCurrentSpace(space.did());
 		} catch (error) {
 			console.error("Failed to create/initialize w3up-client:", error);
 			w3upClientInstance = null; // Reset on failure to allow retry on subsequent calls
@@ -92,8 +97,10 @@ export async function createIpfsCidFromImageUrl(
 				`Failed to fetch image from ${imageUrl}: ${response.status} ${response.statusText}`
 			);
 		}
+		console.log(`Fetching image from: ${imageUrl} - response ok`, response);
 
 		const imageBlob = await response.blob();
+		console.log(`Fetching image from: ${imageUrl} - response ok`, response);
 
 		let filename = "image-from-url"; // Default filename
 		try {
@@ -109,10 +116,11 @@ export async function createIpfsCidFromImageUrl(
 				`Could not parse filename from URL "${imageUrl}", using default "${filename}".`
 			);
 		}
+		console.log("filename", filename);
 
 		// Use the global File constructor (available in Node.js v18+)
 		const imageFile = new File([imageBlob], filename, { type: imageBlob.type });
-
+		console.log("imageFile", imageFile);
 		console.log(
 			`Uploading "${imageFile.name}" (${imageFile.size} bytes) using w3up-client...`
 		);
@@ -132,7 +140,7 @@ export async function createIpfsCidFromImageUrl(
 	} catch (error) {
 		console.error(
 			"Error during image processing or upload with w3up-client:",
-			error
+			JSON.stringify(error, null, 2)
 		);
 		let errorMessage = `Failed to create IPFS CID for ${imageUrl} using w3up-client.`;
 		if (error instanceof Error) {

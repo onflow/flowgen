@@ -1,9 +1,9 @@
 "use server";
 
-import { create, Client } from "@web3-storage/w3up-client";
-import { parse } from "@web3-storage/w3up-client/proof";
-import { Signer } from "@web3-storage/w3up-client/principal/ed25519";
+import * as Client from "@web3-storage/w3up-client";
 import { StoreMemory } from "@web3-storage/w3up-client/stores";
+import * as Proof from "@web3-storage/w3up-client/proof";
+import { Signer } from "@web3-storage/w3up-client/principal/ed25519";
 
 // We will use the global File object available in Node.js v18+
 // If you encounter issues or are on an older Node.js version, you might need:
@@ -11,7 +11,7 @@ import { StoreMemory } from "@web3-storage/w3up-client/stores";
 
 // A global variable to hold the w3up client instance.
 // This helps to reuse the client and its configuration across multiple calls in a server environment.
-let w3upClientInstance: Client | null = null;
+let w3upClientInstance: Client.Client | null = null;
 
 /**
  * Initializes and returns a w3up client instance.
@@ -33,7 +33,7 @@ async function getClient() {
 
 			const principal = Signer.parse(DELEGATION_KEY);
 			const store = new StoreMemory();
-			w3upClientInstance = await create({
+			w3upClientInstance = await Client.create({
 				principal,
 				store,
 			});
@@ -44,7 +44,7 @@ async function getClient() {
 				throw new Error("W3_DELEGATED_PROOF isn't set");
 			}
 
-			const proof = await parse(DELEGATION_PROOF);
+			const proof = await Proof.parse(DELEGATION_PROOF);
 			const space = await w3upClientInstance.addSpace(proof);
 			await w3upClientInstance.setCurrentSpace(space.did());
 		} catch (error) {

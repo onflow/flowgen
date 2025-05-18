@@ -41,7 +41,7 @@ async function getClient() {
 			// It's good practice to check if the client is usable, e.g., by verifying a space.
 			const DELEGATION_PROOF = process.env.W3_DELEGATED_PROOF;
 			if (!DELEGATION_PROOF) {
-				throw new Error("W3_DELEGATED_PROOF is not set");
+				throw new Error("W3_DELEGATED_PROOF isn't set");
 			}
 
 			const proof = await parse(DELEGATION_PROOF);

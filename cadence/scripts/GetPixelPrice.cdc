@@ -1,4 +1,4 @@
-import FlowGenPixel from "FlowGenPixel"
+import "FlowGenPixel"
 
 // Script: get_pixel_price.cdc
 // Description: Fetches the current dynamic price for a pixel at the given x, y coordinates.

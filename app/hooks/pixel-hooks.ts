@@ -29,6 +29,7 @@ import { useFlowMutate, useFlowQuery, useFlowTransaction } from "@onflow/kit";
 import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
 import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc"; // Re-add this import
 import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
+import GET_PIXEL_PRICE_CDC from "@/cadence/scripts/GetPixelPrice.cdc";
 import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 
 // TODO: Replace placeholder addresses with actual configuration or environment variables
@@ -555,5 +556,48 @@ export function useAllPixelData() {
 		isLoading,
 		error,
 		refetch: fetchData,
+	};
+}
+
+// Hook for getting the current price of a pixel
+interface UsePixelPriceProps {
+	x: number | undefined | null;
+	y: number | undefined | null;
+}
+
+export function usePixelPrice({ x, y }: UsePixelPriceProps) {
+	const {
+		data: price,
+		isLoading,
+		error: queryError,
+		refetch,
+	} = useFlowQuery({
+		cadence: GET_PIXEL_PRICE_CDC,
+		args: (arg: any, t: any) => [arg(x, t.UInt16), arg(y, t.UInt16)],
+		query: {
+			enabled: typeof x === "number" && typeof y === "number",
+			staleTime: 0, // Cache for 30 seconds
+			select: (rawData: any): number | null => {
+				console.log("rawData", rawData, x, y);
+				if (rawData === null || typeof rawData === "undefined") return null;
+				const priceString = String(rawData);
+				const parsedPrice = parseFloat(priceString);
+				if (isNaN(parsedPrice)) {
+					console.error(
+						"Invalid price data from get-pixel-price.cdc:",
+						rawData
+					);
+					throw new Error("Failed to parse pixel price data from Flow.");
+				}
+				return parsedPrice;
+			},
+		},
+	});
+
+	return {
+		price: price as number | null,
+		isLoading,
+		error: queryError,
+		refetch,
 	};
 }

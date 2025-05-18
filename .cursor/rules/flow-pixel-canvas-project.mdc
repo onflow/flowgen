@@ -7,6 +7,8 @@ alwaysApply: false
 
 This rule outlines key aspects of the AI-Generated Million Dollar Homepage project on the Flow blockchain, focusing on Cadence 1.0 contracts, scripts, transactions, and testing patterns discussed.
 
+File names should be TitleCase for cadence .cdc files
+
 ## Core Contracts
 
 1.  **`FlowGenPixel.cdc`**: Located at `[cadence/contracts/FlowGenPixel.cdc](mdc:cadence/contracts/FlowGenPixel.cdc)`

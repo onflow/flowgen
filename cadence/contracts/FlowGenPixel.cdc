@@ -298,12 +298,12 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         self.CANVAS_HEIGHT = 16 // Example
         self.MAX_SUPPLY = UInt64(self.CANVAS_WIDTH) * UInt64(self.CANVAS_HEIGHT)
 
-        self.BASE_PRICE = 1.0 // e.g., 1 FLOW for edge pixels
+        self.BASE_PRICE = 10.0 // e.g., 10 FLOW for edge pixels
         self.MID_TIER_PRICE_MULTIPLIER = 2.0
         self.CENTER_TIER_PRICE_MULTIPLIER = 4.0
         self.MID_TIER_THRESHOLD_PERCENT = 0.33 // Inner 33% of (max) Manhattan distance = Center Tier
         self.EDGE_TIER_THRESHOLD_PERCENT = 0.66 // Next 33% (up to 66% of max) = Mid Tier, >66% = Edge Tier
-        self.SCARCITY_PREMIUM_FACTOR = 3.0 // Price can triple due to scarcity
+        self.SCARCITY_PREMIUM_FACTOR = 20.0 // Price can triple due to scarcity
 
         self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = 0xf8d6e0586b0a20c7 // TODO: REPLACE with actual primary sale fee receiver for pixels
         self.registeredPixelKeys = {}

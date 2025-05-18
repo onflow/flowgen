@@ -1,64 +1,70 @@
 "use server";
 
-import * as Client from "@web3-storage/w3up-client";
-import { StoreMemory } from "@web3-storage/w3up-client/stores";
-import * as Proof from "@web3-storage/w3up-client/proof";
-import { Signer } from "@web3-storage/w3up-client/principal/ed25519";
+import { CarWriter } from "@ipld/car/writer";
+import * as dagPb from "@ipld/dag-pb";
+import { sha256 } from "multiformats/hashes/sha2";
+import { CID } from "multiformats/cid";
+import * as raw from "multiformats/codecs/raw";
+import { UnixFS } from "ipfs-unixfs";
+import { Readable } from "stream";
+import fs from "fs";
 
 // We will use the global File object available in Node.js v18+
 // If you encounter issues or are on an older Node.js version, you might need:
 // import { File } from '@web-std/file';
 
-// A global variable to hold the w3up client instance.
-// This helps to reuse the client and its configuration across multiple calls in a server environment.
-let w3upClientInstance: Client.Client | null = null;
+// Helper to create a CAR file from raw bytes
+async function createCarFromBytes(
+	fileName: string,
+	fileBytes: Uint8Array
+): Promise<{ rootCID: CID; carBytes: Uint8Array }> {
+	console.time("createCarFromBytes_total");
 
-/**
- * Initializes and returns a w3up client instance.
- * This function assumes that the server environment is already configured
- * with an agent that has been authorized (e.g., via `w3 agent import` or similar setup)
- * and has a current space selected.
- */
-async function getClient() {
-	if (!w3upClientInstance) {
-		try {
-			console.log("Initializing w3up-client...");
-			// Create will attempt to load the default agent and its store.
-			// For server-side, this agent needs to be pre-configured.
-			const DELEGATION_KEY = process.env.W3_DELEGATED_KEY;
+	console.time("createCarFromBytes_unixfs_pb");
+	const unixfs = new UnixFS({ type: "file", data: fileBytes });
+	const unixfsMarshalledBytes = unixfs.marshal();
+	const pbNodeBytes = dagPb.encode({ Data: unixfsMarshalledBytes, Links: [] });
+	console.log(`pbNodeBytes length: ${pbNodeBytes.length}`);
+	console.timeEnd("createCarFromBytes_unixfs_pb");
 
-			if (!DELEGATION_KEY) {
-				throw new Error("W3_DELEGATED_KEY is not set");
-			}
+	console.time("createCarFromBytes_hash");
+	const hash = await sha256.digest(pbNodeBytes);
+	const rootCID = CID.create(1, dagPb.code, hash);
+	console.log("Root CID for CAR:", rootCID.toString());
+	console.timeEnd("createCarFromBytes_hash");
 
-			const principal = Signer.parse(DELEGATION_KEY);
-			const store = new StoreMemory();
-			w3upClientInstance = await Client.create({
-				principal,
-				store,
-			});
+	console.time("createCarFromBytes_carwriter_setup_and_put");
+	const { writer, out } = CarWriter.create([rootCID]);
 
-			// It's good practice to check if the client is usable, e.g., by verifying a space.
-			const DELEGATION_PROOF = process.env.W3_DELEGATED_PROOF;
-			if (!DELEGATION_PROOF) {
-				throw new Error("W3_DELEGATED_PROOF isn't set");
-			}
-
-			const proof = await Proof.parse(DELEGATION_PROOF);
-			const space = await w3upClientInstance.addSpace(proof);
-			await w3upClientInstance.setCurrentSpace(space.did());
-		} catch (error) {
-			console.error("Failed to create/initialize w3up-client:", error);
-			w3upClientInstance = null; // Reset on failure to allow retry on subsequent calls
-			let errorMessage =
-				"Failed to initialize w3up-client. Ensure the server environment is correctly configured. ";
-			if (error instanceof Error) {
-				errorMessage += `Details: ${error.message}`;
-			}
-			throw new Error(errorMessage);
+	// Start consuming 'out' concurrently.
+	const carBytesPromise = (async () => {
+		const carChunks: Uint8Array[] = [];
+		for await (const chunk of out) {
+			carChunks.push(chunk);
 		}
-	}
-	return w3upClientInstance;
+		return Buffer.concat(carChunks);
+	})();
+
+	console.log("Before writer.put");
+	await writer.put({ cid: rootCID, bytes: pbNodeBytes });
+	console.log("After writer.put, before writer.close");
+	console.timeEnd("createCarFromBytes_carwriter_setup_and_put");
+
+	console.time("createCarFromBytes_writer_close");
+	await writer.close(); // This will signal the 'out' async iterable to end.
+	console.log("After writer.close");
+	console.timeEnd("createCarFromBytes_writer_close");
+
+	console.time("createCarFromBytes_car_stream_consume");
+	// Now, wait for the concurrent consumption to finish.
+	const carBytes = await carBytesPromise;
+	console.timeEnd("createCarFromBytes_car_stream_consume");
+	console.log(
+		`In-memory CAR stream consumed. Total CAR size: ${carBytes.length}`
+	);
+
+	console.timeEnd("createCarFromBytes_total");
+	return { rootCID, carBytes: carBytes };
 }
 
 export interface IpfsCidResponse {
@@ -67,12 +73,13 @@ export interface IpfsCidResponse {
 }
 
 /**
- * Creates an IPFS CID from an image URL by uploading it to Web3.Storage using w3up-client.
+ * Creates an IPFS CID from an image URL by uploading it as a CAR file
+ * to Web3.Storage using the HTTP Bridge.
  *
  * @param imageUrl The URL of the image to process.
- * @returns A promise that resolves with the IPFS CID string.
+ * @returns A promise that resolves with the IPFS CID string and media type.
  * @throws Will throw an error if the image URL is not provided, if fetching fails,
- *         if w3up-client fails to initialize, or if uploading to Web3.Storage fails.
+ *         or if uploading via the HTTP Bridge fails.
  */
 export async function createIpfsCidFromImageUrl(
 	imageUrl: string
@@ -81,18 +88,18 @@ export async function createIpfsCidFromImageUrl(
 		throw new Error("Image URL must be provided.");
 	}
 
-	let client;
-	try {
-		client = await getClient();
-	} catch (error) {
-		// getClient() already logs and throws a detailed error
-		throw error;
+	const W3_STORAGE_SECRET = process.env.W3_STORAGE_AUTH_SECRET;
+	const W3_STORAGE_AUTH = process.env.W3_STORAGE_AUTH_HEADER;
+
+	if (!W3_STORAGE_SECRET || !W3_STORAGE_AUTH) {
+		throw new Error(
+			"W3_STORAGE_AUTH_SECRET or W3_STORAGE_AUTH_HEADER environment variable is not set."
+		);
 	}
 
-	// Ensure client is not null, though getClient should throw if it fails to initialize.
-	if (!client) {
-		throw new Error("w3up client is not available. Initialization failed.");
-	}
+	let imageBlob: Blob;
+	let mediaType: string;
+	let fileName: string;
 
 	try {
 		console.log(`Fetching image from: ${imageUrl}`);
@@ -102,44 +109,165 @@ export async function createIpfsCidFromImageUrl(
 				`Failed to fetch image from ${imageUrl}: ${response.status} ${response.statusText}`
 			);
 		}
+		imageBlob = await response.blob();
+		mediaType = imageBlob.type || "application/octet-stream";
+		fileName =
+			imageUrl.substring(imageUrl.lastIndexOf("/") + 1) || "uploaded-image";
+		fileName = decodeURIComponent(fileName);
+	} catch (error) {
+		console.error("Error fetching image:", error);
+		let errorMessage = "Failed to fetch image. ";
+		if (error instanceof Error) {
+			errorMessage += `Details: ${error.message}`;
+		}
+		throw new Error(errorMessage);
+	}
 
-		const imageBlob = await response.blob();
-
-		let filename = "image"; // Default filename
-		const mediaType = imageBlob.type;
-		// Use the global File constructor (available in Node.js v18+)
-		const imageFile = new File([imageBlob], filename, { type: imageBlob.type });
-		console.log("imageFile", imageFile);
+	try {
+		const imageBytes = new Uint8Array(await imageBlob.arrayBuffer());
 		console.log(
-			`Uploading "${imageFile.name}" (${imageFile.size} bytes) using w3up-client...`
+			`Calling createCarFromBytes for: ${fileName} (${imageBytes.length} bytes)`
+		);
+		const { rootCID, carBytes } = await createCarFromBytes(
+			fileName,
+			imageBytes
+		);
+		console.log(
+			`CAR file created. Root CID (content): ${rootCID.toString()}, CAR size: ${
+				carBytes.length
+			} bytes`
 		);
 
-		// The `uploadFile` method uploads the file to the agent's "current" space.
-		// This requires the agent to have `upload/add` capability for that space.
-		const cid = await client.uploadFile(imageFile);
-		console.log("Stored file with CID (w3up):", cid);
+		// Calculate CID of the CAR file itself
+		const carFileHash = await sha256.digest(carBytes);
+		// Use CAR codec (0x0202) for the CAR file CID
+		const CAR_CODEC = 0x0202;
+		const carFileCID = CID.create(1, CAR_CODEC, carFileHash);
+		console.log(
+			`CAR file CID: ${carFileCID.toString()} (using CAR codec ${CAR_CODEC})`
+		);
 
-		if (!cid) {
+		const uploadAddPayload = {
+			tasks: [
+				[
+					"store/add",
+					process.env.W3_DELEGATED_DID,
+					{
+						link: {
+							"/": carFileCID.toString(),
+						},
+						size: carBytes.length,
+					},
+				],
+			],
+		};
+
+		console.log(
+			"Invoking upload/add via HTTP Bridge to https://up.web3.storage with JSON payload:",
+			JSON.stringify(uploadAddPayload, null, 2)
+		);
+
+		const bridgeResponse = await fetch("https://up.storacha.network/bridge", {
+			method: "POST",
+			headers: {
+				Authorization: W3_STORAGE_AUTH,
+				"X-Auth-Secret": W3_STORAGE_SECRET,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(uploadAddPayload),
+			cache: "no-store",
+		});
+
+		if (!bridgeResponse.ok) {
 			throw new Error(
-				"Failed to upload image via w3up-client: CID returned was null or undefined."
+				`Failed to invoke upload/add via HTTP Bridge: ${bridgeResponse.status} ${bridgeResponse.statusText}}`
 			);
 		}
+		const responseJson = await bridgeResponse.json();
+		console.log(
+			`HTTP Bridge response status: ${bridgeResponse.status} ${bridgeResponse.statusText}`
+		);
 
-		return { cid: cid.toString(), mediaType }; // The CID object from w3up-client has a .toString() method
-	} catch (error) {
-		console.error(
-			"Error during image processing or upload with w3up-client:",
-			JSON.stringify(error, null, 2)
-		);
-		let errorMessage = `Failed to create IPFS CID for ${imageUrl} using w3up-client.`;
-		if (error instanceof Error) {
-			errorMessage += ` Details: ${error.message}`;
+		console.log("HTTP Bridge response text:", JSON.stringify(responseJson));
+
+		if (!Array.isArray(responseJson) || responseJson.length === 0) {
+			throw new Error(
+				`Invalid response from HTTP Bridge: ${JSON.stringify(responseJson)}`
+			);
 		}
-		// Log the full error structure for better debugging on the server
-		console.error(
-			"Full error object for w3up operation:",
-			JSON.stringify(error, null, 2)
-		);
+		console.log("responseJson", JSON.stringify(responseJson, null, 2));
+
+		const task = responseJson[0];
+		if (!task.p.out?.ok) {
+			throw new Error(
+				`Invalid response from HTTP Bridge: ${JSON.stringify(task.p.out)}`
+			);
+		}
+		if (task.p.out?.ok?.status === "upload") {
+			// We need to upload the file
+			const url = task.p.out.ok.url;
+			const headers = task.p.out.ok.headers;
+			const uploadResponse = await fetch(url, {
+				method: "PUT",
+				headers: headers,
+				body: carBytes,
+				cache: "no-store",
+			});
+
+			if (!uploadResponse.ok) {
+				throw new Error(
+					`Failed to upload file to ${url}: ${uploadResponse.status} ${uploadResponse.statusText}`
+				);
+			}
+
+			// Now we need to register the file with the HTTP Bridge
+
+			const registerPayload = {
+				tasks: [
+					[
+						"upload/add",
+						process.env.W3_DELEGATED_DID,
+						{
+							root: {
+								"/": rootCID.toString(),
+							},
+							shards: [
+								{
+									"/": carFileCID.toString(),
+								},
+							],
+						},
+					],
+				],
+			};
+			const registerResponse = await fetch(
+				"https://up.storacha.network/bridge",
+				{
+					method: "POST",
+					headers: {
+						Authorization: W3_STORAGE_AUTH,
+						"X-Auth-Secret": W3_STORAGE_SECRET,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(registerPayload),
+					cache: "no-store",
+				}
+			);
+
+			if (!registerResponse.ok) {
+				throw new Error(
+					`Failed to register file with HTTP Bridge: ${registerResponse.status} ${registerResponse.statusText}`
+				);
+			}
+		}
+
+		return { cid: rootCID.toString(), mediaType };
+	} catch (error) {
+		console.error("Error during CAR creation or HTTP Bridge upload:", error);
+		let errorMessage = "Failed to process and upload image via HTTP Bridge. ";
+		if (error instanceof Error) {
+			errorMessage += `Details: ${error.message}`;
+		}
 		throw new Error(errorMessage);
 	}
 }

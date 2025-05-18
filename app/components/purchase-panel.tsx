@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
-import { useAcquirePixelSpace } from "../hooks/pixel-hooks";
+import { useAcquirePixelSpace, usePixelPrice } from "../hooks/pixel-hooks";
 import { PixelOnChainData } from "@/lib/pixel-types";
+import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 
 type PurchasePanelProps = {
 	selectedSpace: PixelOnChainData | null;
@@ -27,6 +28,17 @@ export default function PurchasePanel({
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
+
+	const x = selectedSpace?.x;
+	const y = selectedSpace?.y;
+	const { price: pixelPrice, refetch: refetchPixelPrice } = usePixelPrice({
+		x: x,
+		y: y,
+	});
+	useEffect(() => {
+		// refetch the pixel price when the space changes
+		refetchPixelPrice();
+	}, [x, y, refetchPixelPrice]);
 
 	const {
 		acquire,
@@ -55,16 +67,17 @@ export default function PurchasePanel({
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 		imageURL = `https://picsum.photos/seed/${Math.random()}/300/300`;
 		console.log("Simulated image generated:", imageURL);
-
 		try {
+			setIsSubmitting(true);
 			await acquire({
 				x: selectedSpace.x,
 				y: selectedSpace.y,
 				prompt: prompt,
 				style: style,
 				imageURL: imageURL,
-				flowPaymentAmount: currentPrice.toFixed(8),
-				backendPaymentAmount: currentPrice + 0.01,
+				imageMediaType: "image/jpeg",
+				flowPaymentAmount: pixelPrice === null ? "0" : pixelPrice.toFixed(8),
+				backendPaymentAmount: pixelPrice === null ? 0 : pixelPrice,
 				userId: user.addr,
 			});
 		} catch (error) {
@@ -186,12 +199,14 @@ export default function PurchasePanel({
 			<div className="bg-blue-50 dark:bg-gray-800 p-4 rounded-lg mb-6">
 				<div className="flex justify-between mb-2 text-gray-800 dark:text-gray-300">
 					<span>Price per cell</span>
-					<span className="font-medium">{currentPrice.toFixed(2)} FLOW</span>
+					<span className="font-medium">
+						{pixelPrice ? pixelPrice.toFixed(2) : "0"} FLOW
+					</span>
 				</div>
 
 				<div className="flex justify-between font-bold mt-2 text-gray-900 dark:text-gray-100">
 					<span>Total</span>
-					<span>{currentPrice.toFixed(2)} FLOW</span>
+					<span>{pixelPrice ? pixelPrice.toFixed(2) : "0"} FLOW</span>
 				</div>
 			</div>
 

@@ -59,7 +59,8 @@ export async function acquirePixelSpace(
 	y: number,
 	prompt: string,
 	style: string,
-	imageURL: string,
+	ipfsImageCID: string,
+	imageMediaType: string,
 	paymentAmount: number,
 	userId: string
 ): Promise<PixelSpaceResult> {
@@ -71,7 +72,8 @@ export async function acquirePixelSpace(
 		y,
 		prompt,
 		style,
-		imageURL,
+		ipfsImageCID,
+		imageMediaType,
 		paymentAmount,
 		userId,
 	});

@@ -1,5 +1,6 @@
 import "NonFungibleToken"
 import "MetadataViews"
+
 access(all)
 contract FooBar: NonFungibleToken {
 

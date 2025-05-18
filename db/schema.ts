@@ -21,7 +21,8 @@ export const pixels = pgTable(
 		isTaken: boolean("is_taken").notNull().default(false),
 		ownerId: text("owner_id"), // User ID of the owner
 		nftId: text("nft_id").unique(), // Would be the NFT ID on Flow / unique ID for the pixel in Web2
-		imageURL: text("image_url"),
+		ipfsImageCID: text("ipfs_image_cid"), // Stores the IPFS CID for the image
+		imageMediaType: text("image_media_type"), // Stores the media type like 'image/png'
 		prompt: text("prompt"),
 		style: text("style"),
 		// For marketplace features
@@ -36,13 +37,10 @@ export const pixels = pgTable(
 			.$onUpdate(() => new Date()),
 	},
 	(table) => {
-		return {
+		return [
 			// Ensures that no two pixels can have the same x and y coordinates
-			uniqueCoordinates: uniqueIndex("unique_coordinates_idx").on(
-				table.x,
-				table.y
-			),
-		};
+			uniqueIndex("unique_coordinates_idx").on(table.x, table.y),
+		];
 	}
 );
 

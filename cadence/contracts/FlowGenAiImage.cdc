@@ -1,5 +1,6 @@
 import "NonFungibleToken"
 import "MetadataViews"
+import "FungibleToken"
 
 access(all)
 contract FlowGenAiImage: NonFungibleToken {
@@ -12,6 +13,12 @@ contract FlowGenAiImage: NonFungibleToken {
   /// The standard paths for the collection are stored in the collection resource type
   access(all) let MinterStoragePath: StoragePath
 
+  // --- Contract-Level Royalty Configuration ---
+  access(all) let platformRoyaltyRate: UFix64
+  access(all) let platformRoyaltyReceiverAddress: Address
+  access(all) let creatorRoyaltyRate: UFix64
+  // --- End Royalty Configuration ---
+
   access(all) resource NFT: NonFungibleToken.NFT {
     access(all) let id: UInt64
     access(all) let name: String
@@ -19,14 +26,16 @@ contract FlowGenAiImage: NonFungibleToken {
     access(all) let aiPrompt: String
     access(all) let ipfsImageCID: String
     access(all) let imageMediaType: String // e.g., "image/png", "image/jpeg"
+    access(self) let royalties: [MetadataViews.Royalty]
 
-    init(name: String, description: String, aiPrompt: String, ipfsImageCID: String, imageMediaType: String) {
+    init(name: String, description: String, aiPrompt: String, ipfsImageCID: String, imageMediaType: String, royalties: [MetadataViews.Royalty]) {
       self.id = self.uuid
       self.name = name
       self.description = description
       self.aiPrompt = aiPrompt
       self.ipfsImageCID = ipfsImageCID
       self.imageMediaType = imageMediaType
+      self.royalties = royalties
     }
     
     access(all) fun createEmptyCollection(): @{NonFungibleToken.Collection} {
@@ -41,7 +50,8 @@ contract FlowGenAiImage: NonFungibleToken {
         Type<MetadataViews.NFTCollectionData>(),
         Type<MetadataViews.NFTCollectionDisplay>(),
         Type<MetadataViews.Serial>(),
-        Type<MetadataViews.Media>()
+        Type<MetadataViews.Media>(),
+        Type<MetadataViews.Royalties>()
       ]
     }
 
@@ -71,15 +81,17 @@ contract FlowGenAiImage: NonFungibleToken {
             self.id
           )
         case Type<MetadataViews.NFTCollectionData>():
-          return FlowGenAiImage.resolveContractView(resourceType: Type<@FlowGenAiImage.NFT>(), viewType: Type<MetadataViews.NFTCollectionData>())
+          return FlowGenAiImage.resolveContractView(resourceType: Type<&FlowGenAiImage.NFT>(), viewType: Type<MetadataViews.NFTCollectionData>())
         case Type<MetadataViews.NFTCollectionDisplay>():
-          return FlowGenAiImage.resolveContractView(resourceType: Type<@FlowGenAiImage.NFT>(), viewType: Type<MetadataViews.NFTCollectionDisplay>())
+          return FlowGenAiImage.resolveContractView(resourceType: Type<&FlowGenAiImage.NFT>(), viewType: Type<MetadataViews.NFTCollectionDisplay>())
         case Type<MetadataViews.Media>():
           let imageUrl = "https://ipfs.io/ipfs/".concat(self.ipfsImageCID)
           return MetadataViews.Media(
             file: MetadataViews.HTTPFile(url: imageUrl),
             mediaType: self.imageMediaType
           )
+        case Type<MetadataViews.Royalties>():
+          return MetadataViews.Royalties(self.royalties)
       }
       return nil
     }
@@ -142,8 +154,32 @@ contract FlowGenAiImage: NonFungibleToken {
     }
   }
   access(all) resource NFTMinter {  
-    access(all) fun createNFT(name: String, description: String, aiPrompt: String, ipfsImageCID: String, imageMediaType: String): @NFT {
-      return <-create NFT(name: name, description: description, aiPrompt: aiPrompt, ipfsImageCID: ipfsImageCID, imageMediaType: imageMediaType)
+    access(all) fun createNFT(name: String, description: String, aiPrompt: String, ipfsImageCID: String, imageMediaType: String, creatorAddress: Address): @NFT {
+      // Prepare platform royalty
+      let platformReceiverCap: Capability<&{FungibleToken.Receiver}>? = getAccount(FlowGenAiImage.platformRoyaltyReceiverAddress)
+          .capabilities.get<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+      let unwrappedPlatformReceiverCap = platformReceiverCap ?? panic("Platform royalty receiver capability not found.")
+      
+      let platformRoyalty = MetadataViews.Royalty(
+          receiver: unwrappedPlatformReceiverCap,
+          cut: FlowGenAiImage.platformRoyaltyRate,
+          description: "FlowGen Platform Royalty"
+      )
+
+      // Prepare creator royalty
+      let creatorReceiverCap: Capability<&{FungibleToken.Receiver}>? = getAccount(creatorAddress)
+          .capabilities.get<&{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+      let unwrappedCreatorReceiverCap = creatorReceiverCap ?? panic("Creator royalty receiver capability not found.")
+      
+      let creatorRoyalty = MetadataViews.Royalty(
+          receiver: unwrappedCreatorReceiverCap,
+          cut: FlowGenAiImage.creatorRoyaltyRate,
+          description: "Creator Royalty"
+      )
+
+      let royaltiesArray = [platformRoyalty, creatorRoyalty]
+
+      return <-create NFT(name: name, description: description, aiPrompt: aiPrompt, ipfsImageCID: ipfsImageCID, imageMediaType: imageMediaType, royalties: royaltiesArray)
     }
 
     init() {
@@ -151,9 +187,16 @@ contract FlowGenAiImage: NonFungibleToken {
   }
 
   init() {
+    // Path initializations first
     self.CollectionStoragePath = /storage/flowGenAiImageNFTCollection
     self.CollectionPublicPath = /public/flowGenAiImageNFTCollection
     self.MinterStoragePath = /storage/flowGenAiImageNFTMinter
+    
+    // Initialize Royalty Configuration (replace with your actual values)
+    self.platformRoyaltyRate = 0.025 // 2.5%
+    self.platformRoyaltyReceiverAddress = 0xf8d6e0586b0a20c7 // Replace with FlowGen's actual address (e.g., your emulator-account's address)
+    self.creatorRoyaltyRate = 0.05 // 5%
+
     self.account.storage.save(<- create NFTMinter(), to: self.MinterStoragePath)
 
   }
@@ -204,5 +247,32 @@ contract FlowGenAiImage: NonFungibleToken {
     }
     return nil
   }
+
+  // --- Public Minting Function ---
+  access(all) fun publicMintAiImageNFT(
+      recipientCollection: &{NonFungibleToken.Receiver},
+      name: String, 
+      description: String, 
+      aiPrompt: String, 
+      ipfsImageCID: String, 
+      imageMediaType: String, 
+      creatorAddress: Address
+  ): @NFT {
+      let minter = self.account.storage.borrow<&NFTMinter>(from: self.MinterStoragePath)
+          ?? panic("Could not borrow NFTMinter from contract storage")
+      
+      let newNFT <- minter.createNFT(
+          name: name, 
+          description: description, 
+          aiPrompt: aiPrompt, 
+          ipfsImageCID: ipfsImageCID, 
+          imageMediaType: imageMediaType, 
+          creatorAddress: creatorAddress
+      )
+      // The deposit is now handled by the caller (transaction) which has the recipientCollection reference
+      // recipientCollection.deposit(token: <-newNFT) // This line is removed from here
+      return <-newNFT // Return the NFT to be deposited by the transaction
+  }
+  // --- End Public Minting Function ---
 
 }

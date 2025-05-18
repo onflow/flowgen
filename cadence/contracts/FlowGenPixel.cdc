@@ -3,7 +3,7 @@
 import "NonFungibleToken"
 import "MetadataViews" // Assuming this import correctly brings ViewResolver's members into scope too
 import "FungibleToken"
-import "ViewResolver" // Re-adding this
+import "FlowGenAiImage" // Added import
 
 access(all) contract FlowGenPixel: NonFungibleToken {
 
@@ -22,7 +22,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     access(all) event Deposit(id: UInt64, to: Address?, isMinting: Bool) // isMinting is new in Cadence 1.0 NFT standard
 
     // Custom event for this contract
-    access(all) event PixelMinted(id: UInt64, x: UInt16, y: UInt16, name: String)
+    access(all) event PixelMinted(id: UInt64, x: UInt16, y: UInt16, aiImageNftID: UInt64) // Updated event
 
     // For tracking minted pixels to ensure uniqueness using a String key "x,y"
     access(contract) var registeredPixelKeys: {String: UInt64}
@@ -30,48 +30,20 @@ access(all) contract FlowGenPixel: NonFungibleToken {
 
     access(all) resource NFT: NonFungibleToken.NFT {
         access(all) let id: UInt64
-        access(all) let name: String
-        access(all) let description: String
-        access(all) let thumbnail: MetadataViews.HTTPFile
-        access(all) let aiPrompt: String
-        access(all) let imageURI: String 
-        access(all) let pixelArtURI: String 
-        access(all) let imageHash: String
         access(all) let x: UInt16
         access(all) let y: UInt16
-        access(self) let royalties: [MetadataViews.Royalty]
+        access(all) let aiImageNftID: UInt64 // Added field to link to the AI Image NFT
 
         init(
-            name: String,
-            description: String,
-            thumbnailURL: String,
-            aiPrompt: String,
-            imageURI: String,
-            pixelArtURI: String,
-            imageHash: String,
             x: UInt16,
             y: UInt16,
-            creatorRoyaltyReceiverCap: Capability<&{FungibleToken.Receiver}>,
-            royaltyRate: UFix64
+            aiImageNftID: UInt64
         ) {
             self.id = self.uuid 
-            self.name = name
-            self.description = description
-            self.thumbnail = MetadataViews.HTTPFile(url: thumbnailURL)
-            self.aiPrompt = aiPrompt
-            self.imageURI = imageURI
-            self.pixelArtURI = pixelArtURI
-            self.imageHash = imageHash
             self.x = x
             self.y = y
-            
-            self.royalties = [
-                MetadataViews.Royalty(
-                    receiver: creatorRoyaltyReceiverCap, 
-                    cut: royaltyRate,
-                    description: "Creator Royalty for AI Pixel"
-                )
-            ]
+            self.aiImageNftID = aiImageNftID
+            // Royalties are now handled by FlowGenAiImage.NFT
         }
 
         access(all) fun createEmptyCollection(): @{NonFungibleToken.Collection} { 
@@ -83,27 +55,33 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                 Type<MetadataViews.Display>(),
                 Type<MetadataViews.ExternalURL>(),
                 Type<MetadataViews.NFTCollectionData>(),
-                Type<MetadataViews.NFTCollectionDisplay>(),
-                Type<MetadataViews.Royalties>()
+                Type<MetadataViews.NFTCollectionDisplay>()
             ]
         }
 
         access(all) fun resolveView(_ view: Type): AnyStruct? {
             switch view {
                 case Type<MetadataViews.Display>():
+                    // Placeholder for pixel thumbnail - this needs design decision
+                    let pixelThumbnail = MetadataViews.HTTPFile(url: "https://flowgen.art/pixel_placeholder.png") 
+                    let nameString = "Pixel (".concat(self.x.toString()).concat(", ").concat(self.y.toString()).concat(")")
+                    let descriptionString = "A pixel on the FlowGen Canvas at coordinates (".concat(self.x.toString()).concat(", ").concat(self.y.toString()).concat(") displaying Artwork ID: ").concat(self.aiImageNftID.toString())
                     return MetadataViews.Display(
-                        name: self.name,
-                        description: self.description,
-                        thumbnail: self.thumbnail
+                        name: nameString, 
+                        description: descriptionString, 
+                        thumbnail: pixelThumbnail
                     )
                 case Type<MetadataViews.ExternalURL>():
-                    return MetadataViews.ExternalURL("https://flowgen.art/pixel/".concat(self.id.toString()))
+                    // URL to the pixel on the platform, e.g., /pixel/10,20
+                    let url = "https://flowgen.art/pixel/"
+                        .concat(self.x.toString())
+                        .concat("-")
+                        .concat(self.y.toString())
+                    return MetadataViews.ExternalURL(url)
                 case Type<MetadataViews.NFTCollectionData>():
                     return FlowGenPixel.resolveContractView(resourceType: Type<@FlowGenPixel.NFT>(), viewType: Type<MetadataViews.NFTCollectionData>())
                 case Type<MetadataViews.NFTCollectionDisplay>():
                     return FlowGenPixel.resolveContractView(resourceType: Type<@FlowGenPixel.NFT>(), viewType: Type<MetadataViews.NFTCollectionDisplay>())
-                case Type<MetadataViews.Royalties>():
-                    return MetadataViews.Royalties(self.royalties)
             }
             return nil
         }
@@ -161,56 +139,50 @@ access(all) contract FlowGenPixel: NonFungibleToken {
 
     access(all) resource NFTMinter {
         access(all) fun mintPixelNFT(
-            recipientCap: Capability<&{NonFungibleToken.Receiver}>,
-            name: String,
-            description: String,
-            thumbnailURL: String,
-            aiPrompt: String,
-            imageURI: String,
-            pixelArtURI: String,
-            imageHash: String,
             x: UInt16,
             y: UInt16,
-            creatorAddress: Address,
-            royaltyRate: UFix64
-        ) {
+            aiImageNftID: UInt64
+        ): @NFT {
             let pixelKeyStr = x.toString().concat(",").concat(y.toString())
             if FlowGenPixel.registeredPixelKeys[pixelKeyStr] != nil {
                 panic("Pixel at coordinates (".concat(pixelKeyStr).concat(") has already been minted."))
             }
 
-            let creatorAcct = getAccount(creatorAddress)
-            let capOpt: Capability<&{FungibleToken.Receiver}>? = creatorAcct.capabilities.get<&{FungibleToken.Receiver}>(
-                    MetadataViews.getRoyaltyReceiverPublicPath()
-                )
-            let creatorRoyaltyReceiverCap = capOpt ?? panic("Creator royalty capability not found or is not valid.")
-
             let newPixelNFT <- create NFT(
-                name: name,
-                description: description,
-                thumbnailURL: thumbnailURL,
-                aiPrompt: aiPrompt,
-                imageURI: imageURI,
-                pixelArtURI: pixelArtURI,
-                imageHash: imageHash,
                 x: x,
                 y: y,
-                creatorRoyaltyReceiverCap: creatorRoyaltyReceiverCap,
-                royaltyRate: royaltyRate
+                aiImageNftID: aiImageNftID
             )
-
-            let recipient = recipientCap.borrow()
-                ?? panic("Could not borrow recipient capability.")
             
             let nftID = newPixelNFT.id
-            recipient.deposit(token: <-newPixelNFT)
-
             FlowGenPixel.registeredPixelKeys[pixelKeyStr] = nftID
             FlowGenPixel.totalSupply = FlowGenPixel.totalSupply + 1
             
-            emit PixelMinted(id: nftID, x: x, y: y, name: name)
+            emit PixelMinted(id: nftID, x: x, y: y, aiImageNftID: aiImageNftID)
+            return <-newPixelNFT
         }
     }
+
+    // --- Public Minting Function ---
+    access(all) fun publicMintPixelNFT(
+        // recipientCollection: &{NonFungibleToken.Receiver}, // Deposit handled by transaction
+        x: UInt16,
+        y: UInt16,
+        aiImageNftID: UInt64
+    ): @NFT {
+        let minter = self.account.storage.borrow<&NFTMinter>(from: self.MinterStoragePath)
+            ?? panic("Could not borrow NFTMinter from contract storage")
+        
+        let newNFT <- minter.mintPixelNFT( // This function already returns @NFT now
+            x: x,
+            y: y,
+            aiImageNftID: aiImageNftID
+        )
+        // The deposit is now handled by the caller (transaction)
+        // recipientCollection.deposit(token: <-newNFT)
+        return <-newNFT // Return the NFT to be deposited by the transaction
+    }
+    // --- End Public Minting Function ---
 
     // Required by NonFungibleToken (via ViewResolver)
     access(all) view fun getContractViews(resourceType: Type?): [Type] {

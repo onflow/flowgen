@@ -14,10 +14,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     access(all) let CANVAS_HEIGHT: UInt16
     access(all) let MAX_SUPPLY: UInt64
     access(all) let BASE_PRICE: UFix64
-    access(all) let MID_TIER_PRICE_MULTIPLIER: UFix64
-    access(all) let CENTER_TIER_PRICE_MULTIPLIER: UFix64
-    access(all) let MID_TIER_THRESHOLD_PERCENT: UFix64
-    access(all) let EDGE_TIER_THRESHOLD_PERCENT: UFix64
+    access(all) let CENTER_MAX_PRICE_TARGET_MULTIPLIER: UFix64
     access(all) let SCARCITY_PREMIUM_FACTOR: UFix64
     access(all) let PIXEL_SALE_FEE_RECEIVER_ADDRESS: Address
 
@@ -218,12 +215,9 @@ access(all) contract FlowGenPixel: NonFungibleToken {
             canvasWidth: self.CANVAS_WIDTH,
             canvasHeight: self.CANVAS_HEIGHT,
             basePrice: self.BASE_PRICE,
-            midTierPriceMultiplier: self.MID_TIER_PRICE_MULTIPLIER,
-            centerTierPriceMultiplier: self.CENTER_TIER_PRICE_MULTIPLIER,
-            midTierThresholdPercent: self.MID_TIER_THRESHOLD_PERCENT,
-            edgeTierThresholdPercent: self.EDGE_TIER_THRESHOLD_PERCENT,
             maxSupply: self.MAX_SUPPLY,
             totalPixelsSold: self.totalPixelsSold,
+            centerMaxPriceTargetMultiplier: self.CENTER_MAX_PRICE_TARGET_MULTIPLIER,
             scarcityPremiumFactor: self.SCARCITY_PREMIUM_FACTOR
         )
     }
@@ -276,10 +270,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         self.MAX_SUPPLY = UInt64(self.CANVAS_WIDTH) * UInt64(self.CANVAS_HEIGHT)
 
         self.BASE_PRICE = 10.0 // e.g., 10 FLOW for edge pixels
-        self.MID_TIER_PRICE_MULTIPLIER = 2.0
-        self.CENTER_TIER_PRICE_MULTIPLIER = 4.0
-        self.MID_TIER_THRESHOLD_PERCENT = 0.33 // Inner 33% of (max) Manhattan distance = Center Tier
-        self.EDGE_TIER_THRESHOLD_PERCENT = 0.66 // Next 33% (up to 66% of max) = Mid Tier, >66% = Edge Tier
+        self.CENTER_MAX_PRICE_TARGET_MULTIPLIER = 3.0 // Price can triple due to scarcity
         self.SCARCITY_PREMIUM_FACTOR = 20.0 // Price can triple due to scarcity
 
         self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = 0xf8d6e0586b0a20c7 // TODO: REPLACE with actual primary sale fee receiver for pixels

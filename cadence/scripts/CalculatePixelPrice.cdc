@@ -9,12 +9,9 @@ access(all) fun main(
     canvasWidth: UInt16,
     canvasHeight: UInt16,
     basePrice: UFix64,
-    midTierPriceMultiplier: UFix64,
-    centerTierPriceMultiplier: UFix64,
-    midTierThresholdPercent: UFix64,
-    edgeTierThresholdPercent: UFix64, // Typically if > midTierThreshold, it's edge or center
     maxSupply: UInt64,
     totalPixelsSold: UInt64,
+    centerMaxPriceTargetMultiplier: UFix64,
     scarcityPremiumFactor: UFix64
 ): UFix64 {
   log("x: ".concat(x.toString()))
@@ -24,12 +21,9 @@ access(all) fun main(
     canvasWidth: canvasWidth,
     canvasHeight: canvasHeight,
     basePrice: basePrice,
-    midTierPriceMultiplier: midTierPriceMultiplier,
-    centerTierPriceMultiplier: centerTierPriceMultiplier,
-    midTierThresholdPercent: midTierThresholdPercent,
-    edgeTierThresholdPercent: edgeTierThresholdPercent,
     maxSupply: maxSupply,
     totalPixelsSold: totalPixelsSold,
+    centerMaxPriceTargetMultiplier: centerMaxPriceTargetMultiplier,
     scarcityPremiumFactor: scarcityPremiumFactor
   )
 } 

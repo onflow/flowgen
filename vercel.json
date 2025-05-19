@@ -1,0 +1,12 @@
+{
+	"crons": [
+		{
+			"path": "/api/cron/poll-background-events",
+			"schedule": "* * * * *"
+		},
+		{
+			"path": "/api/cron/poll-pixel-events",
+			"schedule": "* * * * *"
+		}
+	]
+}

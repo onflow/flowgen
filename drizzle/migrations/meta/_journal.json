@@ -15,6 +15,13 @@
       "when": 1747550229624,
       "tag": "0001_yellow_nightcrawler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747657226944,
+      "tag": "0002_unusual_hex",
+      "breakpoints": true
     }
   ]
 }

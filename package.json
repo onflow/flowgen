@@ -7,7 +7,9 @@
 		"build": "pnpm migrate && next build",
 		"start": "next start",
 		"lint": "next lint",
-		"migrate": "pnpm drizzle-kit migrate"
+		"migrate": "pnpm drizzle-kit migrate",
+    "db:seed": "tsx db/seed.ts"
+
 	},
 	"dependencies": {
 		"@ipld/car": "^5.4.1",

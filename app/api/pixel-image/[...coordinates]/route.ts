@@ -1,28 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { X } from "lucide-react";
+import { NextApiRequest, NextApiResponse } from "next";
 
-export async function GET(request: NextRequest) {
-	const { searchParams } = new URL(request.url);
-	const x = searchParams.get("x");
-	const y = searchParams.get("y");
-
-	if (x === null || y === null) {
-		return new NextResponse(
-			JSON.stringify({ error: "Missing x or y coordinates" }),
-			{
-				status: 400,
-				headers: { "Content-Type": "application/json" },
-			}
-		);
+export async function GET(
+	req: Request,
+	{ params }: { params: Promise<{ coordinates: [x: string, y: string] }> }
+) {
+	const { coordinates } = await params;
+	console.log(coordinates);
+	if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+		return new Response("Missing x or y coordinates", { status: 400 });
 	}
 
-	const xCoord = parseInt(x, 10);
-	const yCoord = parseInt(y, 10);
+	const xCoord = parseInt(coordinates[0], 10);
+	const yCoord = parseInt(coordinates[1], 10);
 
 	if (isNaN(xCoord) || isNaN(yCoord) || xCoord < 0 || yCoord < 0) {
-		return new NextResponse(JSON.stringify({ error: "Invalid coordinates" }), {
-			status: 400,
-			headers: { "Content-Type": "application/json" },
-		});
+		return new Response("Invalid coordinates", { status: 400 });
 	}
 
 	// Generate a unique color based on x and y
@@ -44,11 +37,7 @@ export async function GET(request: NextRequest) {
 </svg>
   `.trim();
 
-	return new NextResponse(svgImage, {
-		status: 200,
-		headers: {
-			"Content-Type": "image/svg+xml",
-			"Cache-Control": "public, max-age=31536000, immutable",
-		},
+	return new Response(svgImage, {
+		headers: { "Content-Type": "image/svg+xml" },
 	});
 }

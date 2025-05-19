@@ -4,7 +4,7 @@ import "NonFungibleToken"
 import "MetadataViews" // Assuming this import correctly brings ViewResolver's members into scope too
 import "FungibleToken"
 import "FlowGenAiImage" // Added import
-
+import "PixelPriceCalculator"
 
 access(all) contract FlowGenPixel: NonFungibleToken {
 
@@ -211,45 +211,21 @@ access(all) contract FlowGenPixel: NonFungibleToken {
 
     // --- Pricing Algorithm Function ---
     access(all) view fun getCurrentPixelPrice(x: UInt16, y: UInt16): UFix64 {
-        // Calculate center coordinates (as UFix64 for precision in division)
-        let centerX = UFix64(self.CANVAS_WIDTH) / 2.0
-        let centerY = UFix64(self.CANVAS_HEIGHT) / 2.0
-
-        // Calculate Manhattan distance from center
-        let xUFix64 = UFix64(x)
-        let yUFix64 = UFix64(y)
-        
-        let absDx = (xUFix64 > centerX) ? (xUFix64 - centerX) : (centerX - xUFix64)
-        let absDy = (yUFix64 > centerY) ? (yUFix64 - centerY) : (centerY - yUFix64)
-        let manhattanDist = absDx + absDy
-
-        // Calculate max possible Manhattan distance from center (e.g., from center to a corner or farthest edge midpoint)
-        // For simplicity, to (0,0) from center, or (width, height) from center. Max is to a corner.
-        // Max manhattan distance is to a corner from the center: centerX + centerY (if center is 0,0 of a quadrant)
-        let maxManhattanDist = centerX + centerY
-
-        var locationPriceMultiplier = 1.0 // Default to base multiplier (edge tier)
-        if maxManhattanDist > 0.0 { // Avoid division by zero if canvas is 1x1 or 0x0
-            let normalizedManhattanDist = manhattanDist / maxManhattanDist
-            if normalizedManhattanDist <= self.MID_TIER_THRESHOLD_PERCENT { // Center Tier
-                locationPriceMultiplier = self.CENTER_TIER_PRICE_MULTIPLIER
-            } else if normalizedManhattanDist <= self.EDGE_TIER_THRESHOLD_PERCENT { // Mid Tier
-                locationPriceMultiplier = self.MID_TIER_PRICE_MULTIPLIER
-            } // Else: Edge Tier, multiplier remains 1.0 (implicitly for BASE_PRICE)
-        }
-        
-        let priceBasedOnLocation = self.BASE_PRICE * locationPriceMultiplier
-
-        // Calculate Scarcity Multiplier
-        var scarcityMultiplier = 1.0
-        if self.MAX_SUPPLY > 0 { // Avoid division by zero
-            let percentageSold = UFix64(self.totalPixelsSold) / UFix64(self.MAX_SUPPLY)
-            // Linear increase: starts at 1.0, goes up to SCARCITY_PREMIUM_FACTOR
-            scarcityMultiplier = 1.0 + ((self.SCARCITY_PREMIUM_FACTOR - 1.0) * percentageSold)
-        }
-
-        let finalPrice = priceBasedOnLocation * scarcityMultiplier
-        return finalPrice
+       
+       return PixelPriceCalculator.calculatePrice(
+            x: x,
+            y: y,
+            canvasWidth: self.CANVAS_WIDTH,
+            canvasHeight: self.CANVAS_HEIGHT,
+            basePrice: self.BASE_PRICE,
+            midTierPriceMultiplier: self.MID_TIER_PRICE_MULTIPLIER,
+            centerTierPriceMultiplier: self.CENTER_TIER_PRICE_MULTIPLIER,
+            midTierThresholdPercent: self.MID_TIER_THRESHOLD_PERCENT,
+            edgeTierThresholdPercent: self.EDGE_TIER_THRESHOLD_PERCENT,
+            maxSupply: self.MAX_SUPPLY,
+            totalPixelsSold: self.totalPixelsSold,
+            scarcityPremiumFactor: self.SCARCITY_PREMIUM_FACTOR
+        )
     }
     // --- End Pricing Algorithm Function ---
 

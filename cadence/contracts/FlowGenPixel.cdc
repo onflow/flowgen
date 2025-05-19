@@ -70,9 +70,9 @@ access(all) contract FlowGenPixel: NonFungibleToken {
             switch view {
                 case Type<MetadataViews.Display>():
                     // Dynamic URL for pixel thumbnail
-                    let thumbnailUrl = "https://flowgen.art/api/pixel-image?x="
+                    let thumbnailUrl = "https://flowgen.art/api/pixel-image/"
                         .concat(self.x.toString())
-                        .concat("&y=")
+                        .concat("/")
                         .concat(self.y.toString())
                     let pixelThumbnail = MetadataViews.HTTPFile(url: thumbnailUrl)
                     let nameString = "Pixel (".concat(self.x.toString()).concat(", ").concat(self.y.toString()).concat(")")
@@ -83,10 +83,10 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                         thumbnail: pixelThumbnail
                     )
                 case Type<MetadataViews.ExternalURL>():
-                    // URL to the pixel on the platform, e.g., /pixel/10,20
-                    let url = "https://flowgen.art/pixel/"
+                    // URL to the pixel on the platform, e.g., /api/pixel-image/10,20
+                    let url = "https://flowgen.art?x="
                         .concat(self.x.toString())
-                        .concat("-")
+                        .concat("&y=")
                         .concat(self.y.toString())
                     return MetadataViews.ExternalURL(url)
                 case Type<MetadataViews.NFTCollectionData>():

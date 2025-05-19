@@ -179,6 +179,36 @@ export async function POST(req: NextRequest) {
       .then(({ data, info }) => {
         const { width, height, channels } = info;
 
+        const cornerSamples = [
+          // Top-left
+          { r: data[0], g: data[1], b: data[2] },
+          // Top-right
+          {
+            r: data[(width - 1) * channels],
+            g: data[(width - 1) * channels + 1],
+            b: data[(width - 1) * channels + 2],
+          },
+          // Bottom-left
+          {
+            r: data[(height - 1) * width * channels],
+            g: data[(height - 1) * width * channels + 1],
+            b: data[(height - 1) * width * channels + 2],
+          },
+          // Bottom-right
+          {
+            r: data[(height - 1) * width * channels + (width - 1) * channels],
+            g: data[
+              (height - 1) * width * channels + (width - 1) * channels + 1
+            ],
+            b: data[
+              (height - 1) * width * channels + (width - 1) * channels + 2
+            ],
+          },
+        ];
+
+        // Find the most common corner color (simplified approach)
+        const bgColor = cornerSamples[0]; // Use first corner as reference
+
         for (let i = 0; i < width * height; i++) {
           const r = data[i * channels];
           const g = data[i * channels + 1];
@@ -186,20 +216,19 @@ export async function POST(req: NextRequest) {
 
           // Very aggressive background detection - remove ALL light colors, grids, and patterns
           const isBackground =
-            // Light colors
-            (r > 180 && g > 180 && b > 180) ||
-            // Gray/neutral colors
-            (Math.abs(r - g) < 25 &&
-              Math.abs(g - b) < 25 &&
-              Math.abs(r - b) < 25) ||
-            // Checkerboard pattern detection - alternating pixels
-            ((i % 2 === 0 || (i / width) % 2 === 0) &&
-              Math.abs(r - g) < 30 &&
-              Math.abs(g - b) < 30);
+            // Color is close to the sampled background color
+            (Math.abs(r - bgColor.r) < 30 &&
+              Math.abs(g - bgColor.g) < 30 &&
+              Math.abs(b - bgColor.b) < 30) ||
+            // Very light colors (definitely background)
+            (r > 240 && g > 240 && b > 240);
 
           if (isBackground) {
-            // Make fully transparent
+            // Make pixel transparent
             data[i * channels + 3] = 0;
+          } else {
+            // Ensure object pixels are fully opaque
+            data[i * channels + 3] = 255;
           }
         }
 

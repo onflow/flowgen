@@ -21,7 +21,7 @@
 		"lucide-react": "^0.510.0",
 		"multiformats": "^13.3.4",
 		"next": "15.3.2",
-    "openai": "^4.100.0",
+		"openai": "^4.100.0",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0"
 	},
@@ -31,6 +31,7 @@
 		"@types/react": "^19.1.4",
 		"@types/react-dom": "^19.1.5",
 		"dotenv": "^16.5.0",
+		"dotenv-cli": "^8.0.0",
 		"drizzle-kit": "^0.31.1",
 		"raw-loader": "^4.0.2",
 		"tailwindcss": "^4.1.7",

@@ -69,8 +69,12 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         access(all) fun resolveView(_ view: Type): AnyStruct? {
             switch view {
                 case Type<MetadataViews.Display>():
-                    // Placeholder for pixel thumbnail - this needs design decision
-                    let pixelThumbnail = MetadataViews.HTTPFile(url: "https://flowgen.art/pixel_placeholder.png") 
+                    // Dynamic URL for pixel thumbnail
+                    let thumbnailUrl = "https://flowgen.art/api/pixel-image/"
+                        .concat(self.x.toString())
+                        .concat("/")
+                        .concat(self.y.toString())
+                    let pixelThumbnail = MetadataViews.HTTPFile(url: thumbnailUrl)
                     let nameString = "Pixel (".concat(self.x.toString()).concat(", ").concat(self.y.toString()).concat(")")
                     let descriptionString = "A pixel on the FlowGen Canvas at coordinates (".concat(self.x.toString()).concat(", ").concat(self.y.toString()).concat(") displaying Artwork ID: ").concat(self.aiImageNftID.toString())
                     return MetadataViews.Display(
@@ -79,10 +83,10 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                         thumbnail: pixelThumbnail
                     )
                 case Type<MetadataViews.ExternalURL>():
-                    // URL to the pixel on the platform, e.g., /pixel/10,20
-                    let url = "https://flowgen.art/pixel/"
+                    // URL to the pixel on the platform, e.g., /api/pixel-image/10,20
+                    let url = "https://flowgen.art?x="
                         .concat(self.x.toString())
-                        .concat("-")
+                        .concat("&y=")
                         .concat(self.y.toString())
                     return MetadataViews.ExternalURL(url)
                 case Type<MetadataViews.NFTCollectionData>():
@@ -246,17 +250,20 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                 )
             case Type<MetadataViews.NFTCollectionDisplay>():
                 let media = MetadataViews.Media(
-                    file: MetadataViews.HTTPFile(url: "https://flowgen.art/flowgen.png"),
+                    file: MetadataViews.HTTPFile(url: "https://bafybeidjl5s3aydzhrd352phxumlyqmzv7khgi4ndne6pqmaqu5nyhn6gy.ipfs.w3s.link/"),
                     mediaType: "image/*"
                 )
                 return MetadataViews.NFTCollectionDisplay(
                     name: "FlowGen Pixel Collection",
                     description: "A collection of AI-generated pixels on the FlowGen Canvas. Resolution: ".concat(self.CANVAS_WIDTH.toString()).concat("x").concat(self.CANVAS_HEIGHT.toString()),
-                    externalURL: MetadataViews.ExternalURL("https://flowgen.art/collection"),
+                    externalURL: MetadataViews.ExternalURL("https://flowgen.art"),
                     squareImage: media,
                     bannerImage: media,
                     socials: {
-                        "twitter": MetadataViews.ExternalURL("https://twitter.com/YourFlowGenProject")
+                        "twitter": MetadataViews.ExternalURL("https://x.com/flow_blockchain"),
+                        "discord": MetadataViews.ExternalURL("https://discord.gg/flow"),
+                        "telegram": MetadataViews.ExternalURL("https://t.me/flowblockchain"),
+                        "website": MetadataViews.ExternalURL("https://flowgen.art")
                     }
                 )
         }

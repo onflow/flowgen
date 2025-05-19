@@ -1,3 +1,4 @@
+import { generateStyledPrompt } from "@/lib/prompt-style";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
@@ -11,18 +12,7 @@ export async function POST(request: Request) {
 		const { prompt, style } = await request.json();
 
 		// Customize prompt based on style
-		let enhancedPrompt = prompt;
-		if (style === "Pixel Art") {
-			enhancedPrompt = `A pixel art style image of: ${prompt}. 64x64 pixels, vibrant colors.`;
-		} else if (style === "Abstract") {
-			enhancedPrompt = `An abstract art representation of: ${prompt}. Bold colors and shapes.`;
-		} else if (style === "Cyberpunk") {
-			enhancedPrompt = `A cyberpunk style image of: ${prompt}. Neon colors, futuristic, digital.`;
-		} else if (style === "Minimalist") {
-			enhancedPrompt = `A minimalist style image of: ${prompt}. Clean lines, minimal details, elegant.`;
-		} else {
-			enhancedPrompt = `A photorealistic image of: ${prompt}. Detailed and lifelike.`;
-		}
+		let enhancedPrompt = generateStyledPrompt(style, prompt);
 
 		const response = await openai.images.generate({
 			model: "gpt-image-1",

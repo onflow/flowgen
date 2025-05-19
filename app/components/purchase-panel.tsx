@@ -8,6 +8,11 @@ import * as fcl from "@onflow/fcl";
 import { useAcquirePixelSpace, usePixelPrice } from "../hooks/pixel-hooks";
 import { PixelOnChainData } from "@/lib/pixel-types";
 import AIImageGenerator from "./ai-image-generator";
+import {
+	CUTE_ART_STYLE_LABELS,
+	CUTE_ART_STYLES,
+	CuteArtStyle,
+} from "@/lib/prompt-style";
 
 type PurchasePanelProps = {
 	selectedSpace: PixelOnChainData | null;
@@ -23,7 +28,7 @@ export default function PurchasePanel({
 	onPurchaseSuccess,
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
-	const [style, setStyle] = useState("Pixel Art");
+	const [style, setStyle] = useState<CuteArtStyle>("pixelArt");
 	const [imageURL, setImageURL] = useState("");
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,41 +102,7 @@ export default function PurchasePanel({
 				</p>
 			</div>
 		);
-	} /* else if (selectedSpace.ownerId === user?.addr) {
-		return (
-			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-				<h3 className="text-lg font-medium mb-1">You already own this space</h3>
-				<div className="mb-4">
-					<div className="bg-white border border-gray-300 p-4 rounded-lg text-center">
-						<div className="text-6xl mb-2 text-gray-400">
-							<img
-								src={selectedSpace.image || ""}
-								alt="Selected space"
-								width={64}
-								height={64}
-								className="mx-auto h-16 w-16"
-							/>
-						</div>
-						<p className="text-sm text-gray-500">
-							Position: ({selectedSpace.x}, {selectedSpace.y})
-						</p>
-					</div>
-				</div>
-			</div>
-		);
-	} else if (selectedSpace.owner) {
-		return (
-			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-				<h3 className="text-lg font-medium mb-1">This space is already owned by {selectedSpace.owner}</h3>
-				<div className="text-6xl mb-2 text-gray-400">
-					<img src={selectedSpace.image || ''} alt="Selected space" width={64} height={64} className="mx-auto h-16 w-16" />
-				</div>
-				<p className="text-sm text-gray-500">
-					Position: ({selectedSpace.x}, {selectedSpace.y})
-				</p>
-			</div>
-		);
-	} */
+	}
 
 	if (!user.loggedIn) {
 		return (
@@ -192,13 +163,13 @@ export default function PurchasePanel({
 					<select
 						className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
 						value={style}
-						onChange={(e) => setStyle(e.target.value)}
+						onChange={(e) => setStyle(e.target.value as CuteArtStyle)}
 					>
-						<option>Photorealistic</option>
-						<option>Pixel Art</option>
-						<option>Abstract</option>
-						<option>Cyberpunk</option>
-						<option>Minimalist</option>
+						{CUTE_ART_STYLES.map((artStyle: CuteArtStyle) => (
+							<option value={artStyle}>
+								{CUTE_ART_STYLE_LABELS[artStyle]}
+							</option>
+						))}
 					</select>
 				</div>
 				<AIImageGenerator

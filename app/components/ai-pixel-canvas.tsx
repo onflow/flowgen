@@ -101,7 +101,6 @@ export default function AIPixelCanvas() {
 
 	const handlePurchaseSuccess = useCallback(async () => {
 		console.log("Purchase successful, refreshing canvas data...");
-		setSelectedSpace(null);
 		await fetchCanvasOverview();
 		if (gridParams) {
 			await refetchPixelData();

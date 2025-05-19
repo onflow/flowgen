@@ -31,7 +31,7 @@ import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc"; /
 import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
 import GET_PIXEL_PRICE_CDC from "@/cadence/scripts/GetPixelPrice.cdc";
 import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
-
+import { CuteArtStyle, generateStyledPrompt } from "@/lib/prompt-style";
 // TODO: Replace placeholder addresses with actual configuration or environment variables
 const DEFAULT_FEE_RECEIVER_ADDRESS = "0xf8d6e0586b0a20c7"; // Example: Replace with your actual emulator service/fee account address
 const DEFAULT_ROYALTY_RATE = "0.05000000"; // 5% royalty rate as UFix64
@@ -60,7 +60,7 @@ interface AcquirePixelParams {
 	x: number;
 	y: number;
 	prompt: string; // Used for AI prompt and Cadence aiPrompt & artworkDescription
-	style: string; // For backend
+	style: CuteArtStyle; // For backend
 	imageURL: string; // For backend & Cadence ipfsImageCID
 	imageMediaType: string; // For Cadence imageMediaType
 	flowPaymentAmount: string; // UFix64 string for Cadence paymentAmount
@@ -162,6 +162,7 @@ export function useAcquirePixelSpace({
 			setIsTrackingAndUpdating(false); // Reset tracking state
 
 			const { cid, mediaType } = await createIpfsCidFromImageUrl(imageURL);
+
 			// Store params for the server action call that will happen in useEffect
 			setActionParams({
 				prompt,
@@ -174,7 +175,7 @@ export function useAcquirePixelSpace({
 
 			const finalPixelName = `Pixel Art #${x}-${y}`;
 			const finalDescription = prompt;
-			const finalAiCadencePrompt = prompt;
+			const finalAiCadencePrompt = generateStyledPrompt(style, prompt);
 			const finalIpfsImageCID = cid;
 
 			console.log("args", {

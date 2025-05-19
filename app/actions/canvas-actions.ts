@@ -25,11 +25,12 @@ export async function acquirePixelSpaceServerAction(data: {
 	y: number;
 	prompt: string;
 	style: string;
-	imageURL: string;
+	ipfsImageCID: string;
+	imageMediaType: string;
 	paymentAmount: number; // Consider how this might be used (e.g., for logging)
 	userId: string;
 }): Promise<PixelSpaceResult> {
-	const { x, y, prompt, style, imageURL, userId } = data;
+	const { x, y, prompt, style, ipfsImageCID, imageMediaType, userId } = data;
 
 	try {
 		// Check if the pixel is already taken
@@ -58,7 +59,8 @@ export async function acquirePixelSpaceServerAction(data: {
 				isTaken: true,
 				ownerId: userId,
 				nftId: newPixelId, // Ensure this is unique if used as a lookup key
-				imageURL,
+				ipfsImageCID,
+				imageMediaType,
 				prompt,
 				style,
 				// price, isListed, listingId will default or be null
@@ -574,9 +576,10 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 	// x, y, userId will be extracted from events
 	prompt: string;
 	style: string;
-	imageURL: string;
+	ipfsImageCID: string;
+	imageMediaType: string;
 }): Promise<PixelSpaceResult> {
-	const { txId, prompt, style, imageURL } = data;
+	const { txId, prompt, style, ipfsImageCID, imageMediaType } = data;
 
 	console.log(
 		`Server Action: Tracking Flow transaction ${txId} for pixel purchase.`
@@ -684,7 +687,8 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 						isTaken: true,
 						ownerId: ownerId,
 						nftId: nftIdOnChain, // Use the actual NFT ID from the event
-						imageURL,
+						ipfsImageCID,
+						imageMediaType,
 						prompt,
 						style,
 					})

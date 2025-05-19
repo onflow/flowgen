@@ -29,6 +29,8 @@ import { useFlowMutate, useFlowQuery, useFlowTransaction } from "@onflow/kit";
 import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
 import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc"; // Re-add this import
 import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
+import GET_PIXEL_PRICE_CDC from "@/cadence/scripts/GetPixelPrice.cdc";
+import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 
 // TODO: Replace placeholder addresses with actual configuration or environment variables
 const DEFAULT_FEE_RECEIVER_ADDRESS = "0xf8d6e0586b0a20c7"; // Example: Replace with your actual emulator service/fee account address
@@ -57,17 +59,18 @@ export function useInitializeUserProfile() {
 interface AcquirePixelParams {
 	x: number;
 	y: number;
-	prompt: string; // Used for AI prompt and Cadence description/aiPrompt
+	prompt: string; // Used for AI prompt and Cadence aiPrompt & artworkDescription
 	style: string; // For backend
-	imageURL: string; // For backend & Cadence thumbnail/imageURI/pixelArtURI
+	imageURL: string; // For backend & Cadence ipfsImageCID
+	imageMediaType: string; // For Cadence imageMediaType
 	flowPaymentAmount: string; // UFix64 string for Cadence paymentAmount
 	backendPaymentAmount: number; // For backend server action
-	userId: string; // User's Flow address, for Cadence creatorAddress & backend ownerId
+	userId: string; // User's Flow address, for backend ownerId (signer is implicit buyer for Cadence)
 
-	// Optional: Allow overriding if these constants aren't sufficient for some edge case
-	feeReceiverAddress?: string;
-	royaltyRate?: string;
-	pixelContractAdminAddress?: string;
+	// These are no longer direct Cadence script args but kept for potential future use or consistency
+	// feeReceiverAddress?: string; // Handled by contract
+	// royaltyRate?: string; // Handled by contract
+	// pixelContractAdminAddress?: string; // Handled by contract
 }
 
 // Hook for acquiring pixel space (with Flow transaction)
@@ -101,7 +104,8 @@ export function useAcquirePixelSpace({
 					txId: txId,
 					prompt: actionParams?.prompt || "",
 					style: actionParams?.style || "",
-					imageURL: actionParams?.imageURL || "",
+					ipfsImageCID: actionParams?.ipfsImageCID || "",
+					imageMediaType: actionParams?.imageMediaType || "",
 				})
 					.then((result) => {
 						setFinalPixelData(result);
@@ -152,44 +156,48 @@ export function useAcquirePixelSpace({
 			imageURL,
 			flowPaymentAmount,
 			userId,
-			feeReceiverAddress = DEFAULT_FEE_RECEIVER_ADDRESS,
-			royaltyRate = DEFAULT_ROYALTY_RATE,
-			pixelContractAdminAddress,
 		}: AcquirePixelParams) => {
 			setCombinedError(null);
 			setFinalPixelData(null);
 			setIsTrackingAndUpdating(false); // Reset tracking state
 
+			const { cid, mediaType } = await createIpfsCidFromImageUrl(imageURL);
 			// Store params for the server action call that will happen in useEffect
-			setActionParams({ prompt, style, imageURL });
+			setActionParams({
+				prompt,
+				style,
+				ipfsImageCID: cid,
+				imageMediaType: mediaType,
+			});
 
 			console.log("Initiating Flow transaction for pixel purchase...");
 
 			const finalPixelName = `Pixel Art #${x}-${y}`;
 			const finalDescription = prompt;
-			const finalThumbnailURL = imageURL;
 			const finalAiCadencePrompt = prompt;
-			const finalImageURI = imageURL;
-			const finalPixelArtURI = imageURL;
-			const finalImageHash = `image-hash-${Date.now()}`; // Consider a more robust hashing
+			const finalIpfsImageCID = cid;
+
+			console.log("args", {
+				x,
+				y,
+				finalPixelName,
+				finalDescription,
+				finalAiCadencePrompt,
+				finalIpfsImageCID,
+				mediaType,
+				flowPaymentAmount,
+			});
 
 			const args = (arg: any, t: any): any[] => [
 				arg(x, t.UInt16),
 				arg(y, t.UInt16),
 				arg(finalPixelName, t.String),
 				arg(finalDescription, t.String),
-				arg(finalThumbnailURL, t.String),
 				arg(finalAiCadencePrompt, t.String),
-				arg(finalImageURI, t.String),
-				arg(finalPixelArtURI, t.String),
-				arg(finalImageHash, t.String),
+				arg(finalIpfsImageCID, t.String),
+				arg(mediaType, t.String),
 				arg(flowPaymentAmount, t.UFix64),
-				arg(userId, t.Address), // creatorAddress for Cadence, matches current user
-				arg(royaltyRate, t.UFix64),
-				arg(pixelContractAdminAddress || userId, t.Address),
-				arg(feeReceiverAddress, t.Address),
 			];
-
 			try {
 				// Mutate will set txIdFromHookData when the transaction is submitted
 				mutate({
@@ -548,5 +556,48 @@ export function useAllPixelData() {
 		isLoading,
 		error,
 		refetch: fetchData,
+	};
+}
+
+// Hook for getting the current price of a pixel
+interface UsePixelPriceProps {
+	x: number | undefined | null;
+	y: number | undefined | null;
+}
+
+export function usePixelPrice({ x, y }: UsePixelPriceProps) {
+	const {
+		data: price,
+		isLoading,
+		error: queryError,
+		refetch,
+	} = useFlowQuery({
+		cadence: GET_PIXEL_PRICE_CDC,
+		args: (arg: any, t: any) => [arg(x, t.UInt16), arg(y, t.UInt16)],
+		query: {
+			enabled: typeof x === "number" && typeof y === "number",
+			staleTime: 0, // Cache for 30 seconds
+			select: (rawData: any): number | null => {
+				console.log("rawData", rawData, x, y);
+				if (rawData === null || typeof rawData === "undefined") return null;
+				const priceString = String(rawData);
+				const parsedPrice = parseFloat(priceString);
+				if (isNaN(parsedPrice)) {
+					console.error(
+						"Invalid price data from get-pixel-price.cdc:",
+						rawData
+					);
+					throw new Error("Failed to parse pixel price data from Flow.");
+				}
+				return parsedPrice;
+			},
+		},
+	});
+
+	return {
+		price: price as number | null,
+		isLoading,
+		error: queryError,
+		refetch,
 	};
 }

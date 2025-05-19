@@ -1,115 +1,131 @@
 import "FungibleToken"
 import "NonFungibleToken"
 import "FlowGenPixel"
-import "FlowGenCanvas"
+import "FlowGenAiImage"
 
 transaction(
     // Pixel Coordinates
     x: UInt16,
     y: UInt16,
-    // NFT Metadata
-    name: String,
-    description: String,
-    thumbnailURL: String,
+    // Artwork NFT Metadata
+    artworkName: String,
+    artworkDescription: String,
     aiPrompt: String,
-    imageURI: String,
-    pixelArtURI: String,
-    imageHash: String,
-    // Payment & Royalty
-    paymentAmount: UFix64,
-    creatorAddress: Address,
-    royaltyRate: UFix64,
-    // Addresses
-    pixelContractAdminAddress: Address,
-    feeReceiverAddress: Address
+    ipfsImageCID: String,
+    imageMediaType: String,
+    // Payment
+    paymentAmount: UFix64
 ) {
+    // --- Constants for Transaction --- 
+    // PRICE_PER_PIXEL and FLOWGEN_PRIMARY_SALE_RECEIVER_ADDRESS are now managed by FlowGenPixel contract
+    // --- End Constants --- 
+
     let paymentVault: @{FungibleToken.Vault}
-    let buyerPixelCollectionCapOpt: Capability<&{NonFungibleToken.Receiver}>?
-    let feeReceiverCapOpt: Capability<&{FungibleToken.Receiver}>?
-    let nftMinterRef: &FlowGenPixel.NFTMinter
+    let buyerPixelCollection: &{NonFungibleToken.Receiver}
+    let buyerAiImageCollection: &{NonFungibleToken.Receiver}
+    // let primarySaleReceiver: &{FungibleToken.Receiver} // Removed, handled by FlowGenPixel contract
+
+    let buyerAddress: Address
 
     prepare(buyerAcct: auth(Storage, Capabilities) &Account) { 
-        log("DEBUG: PurchasePixel.cdc V8 - Inside PREPARE (Corrected Collection Setup)") 
+        // --- Constants defined in prepare block --- 
+        // PRICE_PER_PIXEL is now fetched from FlowGenPixel contract or validated against it.
+        // FLOWGEN_PRIMARY_SALE_RECEIVER_ADDRESS is handled by FlowGenPixel contract.
+        // --- End Constants --- 
 
-        // Setup FlowGenPixel Collection if it doesn't exist
-        if buyerAcct.storage.borrow<&FlowGenPixel.Collection>(from: FlowGenPixel.CollectionStoragePath) == nil {
-            log("DEBUG: FlowGenPixel.Collection not found in storage. Creating and saving...")
-            buyerAcct.storage.save(
-                <-FlowGenPixel.createEmptyCollection(nftType: Type<@FlowGenPixel.NFT>()),
-                to: FlowGenPixel.CollectionStoragePath
-            )
-            log("DEBUG: Saved new FlowGenPixel.Collection to storage.")
-            
-            let cap = buyerAcct.capabilities.storage.issue<&FlowGenPixel.Collection>(FlowGenPixel.CollectionStoragePath)
-            buyerAcct.capabilities.publish(cap, at: FlowGenPixel.CollectionPublicPath)
+        log("PurchasePixel V3 - PREPARE: Starting") 
 
-            log("DEBUG: Linked/Published public capability for FlowGenPixel.Collection.")
-        } else {
-            log("DEBUG: FlowGenPixel.Collection already exists in storage.")
+        self.buyerAddress = buyerAcct.address
+
+        // 0. Price Check - Validate against FlowGenPixel.getCurrentPixelPrice(x: x, y: y)
+        let expectedPrice = FlowGenPixel.getCurrentPixelPrice(x: x, y: y)
+        if paymentAmount != expectedPrice {
+            panic("Payment amount (".concat(paymentAmount.toString()).concat(") does not match the current dynamic price (").concat(expectedPrice.toString()).concat(")."))
         }
 
-        // Now, get the Receiver capability from the (now guaranteed to be linked) public path
-        self.buyerPixelCollectionCapOpt = buyerAcct.capabilities.get<&{NonFungibleToken.Receiver}>(
-            FlowGenPixel.CollectionPublicPath
-        )
-        if self.buyerPixelCollectionCapOpt == nil || !self.buyerPixelCollectionCapOpt!.check() {
-             panic("Could not get a valid Receiver capability for the buyer's FlowGenPixel Collection from the public path.")
-        }
-        log("DEBUG: Successfully obtained buyerPixelCollectionCapOpt (Receiver Capability).")
-
-        let mainFlowVault = buyerAcct.storage.borrow<auth(FungibleToken.Withdraw) &{FungibleToken.Vault}>(from: /storage/flowTokenVault)
-            ?? panic("Cannot borrow Flow Token vault from buyer's account.")
-        self.paymentVault <- mainFlowVault.withdraw(amount: paymentAmount)
-        log("DEBUG: Withdrew payment.")
-
-        let feeReceiverAccount = getAccount(feeReceiverAddress)
-        self.feeReceiverCapOpt = feeReceiverAccount.capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-        if self.feeReceiverCapOpt == nil || !self.feeReceiverCapOpt!.check() {
-            panic("Could not obtain valid capability for fee receiver.")
-        }
-        log("DEBUG: Obtained fee receiver capability.")
-        
-        self.nftMinterRef = buyerAcct.storage.borrow<&FlowGenPixel.NFTMinter>(from: FlowGenPixel.MinterStoragePath)
-            ?? panic("Could not borrow NFTMinter reference.")
-        log("DEBUG: Borrowed NFTMinter reference.")
-    }
-
-    execute {
-        log("DEBUG: PurchasePixel.cdc - Inside EXECUTE")
-        let buyerPixelCollectionCap = self.buyerPixelCollectionCapOpt ?? panic("Buyer's FlowGenPixel Collection receiver capability not found in execute phase.")
-
-        let feeReceiverCap = self.feeReceiverCapOpt ?? panic("Fee receiver capability not found in execute phase.")
-        if !feeReceiverCap.check(){ 
-            panic("Fee receiver capability is not valid in execute phase.")
-        }
-
-        let expectedPrice = FlowGenCanvas.getCurrentPrice()
-        if paymentAmount != expectedPrice { 
-            panic("Payment amount (".concat(paymentAmount.toString()).concat(") does not match the current price (").concat(expectedPrice.toString()).concat(")."))
-        }
-
-        if FlowGenCanvas.isPixelTaken(x: x, y: y) {
+        // 1. Check if Pixel is already minted (using FlowGenPixel contract directly)
+        if FlowGenPixel.isPixelMinted(x: x, y: y) {
             panic("Pixel at coordinates (".concat(x.toString()).concat(", ").concat(y.toString()).concat(") is already taken."))
         }
 
-        let feeReceiver = feeReceiverCap.borrow()!
-        feeReceiver.deposit(from: <-self.paymentVault)
-        log("Payment deposited to fee receiver.")
+        // 2. Setup/Borrow Buyer's FlowGenPixel Collection
+        if buyerAcct.storage.borrow<&FlowGenPixel.Collection>(from: FlowGenPixel.CollectionStoragePath) == nil {
+            log("PREPARE: FlowGenPixel.Collection not found. Creating...")
+            buyerAcct.storage.save(<-FlowGenPixel.createEmptyCollection(nftType: Type<@FlowGenPixel.NFT>()), to: FlowGenPixel.CollectionStoragePath)
+            buyerAcct.capabilities.publish(buyerAcct.capabilities.storage.issue<&FlowGenPixel.Collection>(FlowGenPixel.CollectionStoragePath), at: FlowGenPixel.CollectionPublicPath)
+            log("PREPARE: FlowGenPixel.Collection created and published.")
+        }
+        self.buyerPixelCollection = buyerAcct.storage.borrow<&FlowGenPixel.Collection>(from: FlowGenPixel.CollectionStoragePath)
+            ?? panic("Cannot borrow FlowGenPixel.Collection receiver from buyer account")
+        log("PREPARE: Borrowed buyer's FlowGenPixel Collection receiver.")
 
-        self.nftMinterRef.mintPixelNFT(
-            recipientCap: buyerPixelCollectionCap,
-            name: name,
-            description: description,
-            thumbnailURL: thumbnailURL,
+        // 3. Setup/Borrow Buyer's FlowGenAiImage Collection
+        if buyerAcct.storage.borrow<&FlowGenAiImage.Collection>(from: FlowGenAiImage.CollectionStoragePath) == nil {
+            log("PREPARE: FlowGenAiImage.Collection not found. Creating...")
+            buyerAcct.storage.save(<-FlowGenAiImage.createEmptyCollection(nftType: Type<@FlowGenAiImage.NFT>()), to: FlowGenAiImage.CollectionStoragePath)
+            buyerAcct.capabilities.publish(buyerAcct.capabilities.storage.issue<&FlowGenAiImage.Collection>(FlowGenAiImage.CollectionStoragePath), at: FlowGenAiImage.CollectionPublicPath)
+            log("PREPARE: FlowGenAiImage.Collection created and published.")
+        }
+        self.buyerAiImageCollection = buyerAcct.storage.borrow<&FlowGenAiImage.Collection>(from: FlowGenAiImage.CollectionStoragePath)
+            ?? panic("Cannot borrow FlowGenAiImage.Collection receiver from buyer account")
+        log("PREPARE: Borrowed buyer's FlowGenAiImage Collection receiver.")
+
+        // 4. Prepare Payment Vault
+        let mainFlowVault = buyerAcct.storage.borrow<auth(FungibleToken.Withdraw) &{FungibleToken.Provider}>(from: /storage/flowTokenVault)
+            ?? panic("Cannot borrow Flow Token vault (as Provider) from buyer's account.")
+        self.paymentVault <- mainFlowVault.withdraw(amount: paymentAmount)
+        log("PREPARE: Withdrew payment from buyer's vault.")
+
+        // 5. Get Primary Sale Receiver Capability - NO LONGER NEEDED HERE
+        // self.primarySaleReceiver = getAccount(FLOWGEN_PRIMARY_SALE_RECEIVER_ADDRESS)
+        //     .capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
+        //     .borrow() ?? panic("Could not borrow receiver capability for primary sale receiver.")
+        // log("PREPARE: Borrowed primary sale receiver capability.")
+
+        log("PurchasePixel V3 - PREPARE: Finished")
+    }
+
+    execute {
+        log("PurchasePixel V3 - EXECUTE: Starting")
+
+        // 1. Deposit Payment to Primary Sale Receiver - NO LONGER DONE DIRECTLY HERE
+        // self.primarySaleReceiver.deposit(from: <-self.paymentVault)
+        // log("EXECUTE: Payment deposited to primary sale receiver.")
+
+        // 2. Mint FlowGenAiImage.NFT by calling public contract function
+        // The buyer (signer) is the creator of the artwork
+        let newAiImage <- FlowGenAiImage.publicMintAiImageNFT(
+            recipientCollection: self.buyerAiImageCollection, // Pass the receiver capability
+            name: artworkName,
+            description: artworkDescription,
             aiPrompt: aiPrompt,
-            imageURI: imageURI,
-            pixelArtURI: pixelArtURI,
-            imageHash: imageHash,
+            ipfsImageCID: ipfsImageCID,
+            imageMediaType: imageMediaType,
+            creatorAddress: self.buyerAddress // Buyer is the creator
+        )
+        let newAiImageNftID = newAiImage.id
+        log("EXECUTE: FlowGenAiImage.NFT minted with ID: ".concat(newAiImageNftID.toString()))
+
+        // 3. Deposit FlowGenAiImage.NFT to Buyer's Collection (already done by publicMint if it took receiver, otherwise do it here)
+        // The publicMintAiImageNFT now returns the @NFT, so we deposit it here.
+        self.buyerAiImageCollection.deposit(token: <-newAiImage)
+        log("EXECUTE: Deposited FlowGenAiImage.NFT to buyer's AiImage collection.")
+
+        // 4. Mint FlowGenPixel.NFT by calling public contract function
+        // Payment is now passed to the public mint function
+        let newPixel <- FlowGenPixel.publicMintPixelNFT(
             x: x,
             y: y,
-            creatorAddress: creatorAddress,
-            royaltyRate: royaltyRate
+            aiImageNftID: newAiImageNftID,
+            payment: <-self.paymentVault // Pass the payment vault here
         )
-        log("FlowGenPixel NFT minted and deposited to buyer's collection.")
+        log("EXECUTE: FlowGenPixel.NFT minted with ID: ".concat(newPixel.id.toString()))
+
+        // 5. Deposit FlowGenPixel.NFT to Buyer's Collection
+        // The publicMintPixelNFT now returns the @NFT, so we deposit it here.
+        self.buyerPixelCollection.deposit(token: <-newPixel)
+        log("EXECUTE: Deposited FlowGenPixel.NFT to buyer's Pixel collection.")
+
+        log("PurchasePixel V3 - EXECUTE: Finished Successfully!")
     }
 }

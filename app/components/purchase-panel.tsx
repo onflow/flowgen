@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Image, Camera, PlusSquare, Wallet, Loader2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
-import { useAcquirePixelSpace } from "../hooks/pixel-hooks";
+import { useAcquirePixelSpace, usePixelPrice } from "../hooks/pixel-hooks";
 import { PixelOnChainData } from "@/lib/pixel-types";
 import AIImageGenerator from "./ai-image-generator";
 import CohesiveCanvasGenerator from "./cohesive-canvas-generator";
@@ -44,6 +44,17 @@ export default function PurchasePanel({
 	const [isCohesiveGenerating, setIsCohesiveGenerating] = useState(false);
 	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
 
+	const x = selectedSpace?.x;
+	const y = selectedSpace?.y;
+	const { price: pixelPrice, refetch: refetchPixelPrice } = usePixelPrice({
+		x: x,
+		y: y,
+	});
+	useEffect(() => {
+		// refetch the pixel price when the space changes
+		refetchPixelPrice();
+	}, [x, y, refetchPixelPrice]);
+
 	const {
 		acquire,
 		isLoading: isAcquiringPixel,
@@ -58,81 +69,6 @@ export default function PurchasePanel({
 		},
 	});
 
-	// Function to convert PixelOnChainData to CanvasPixel format
-	const getAllExistingPixels = (): CanvasPixel[] => {
-		// Filter out pixels that aren't taken
-		return existingPixels
-			.filter(pixel => pixel.isTaken)
-			.map(pixel => {
-				// Convert each PixelOnChainData to CanvasPixel format
-				// Use default values for missing properties
-				return {
-					x: pixel.x,
-					y: pixel.y,
-					color: "#FFFFFF", // Default color
-					prompt: "Existing pixel", // Default prompt since it doesn't exist on PixelOnChainData
-					imageUrl: pixel.imageUrl || undefined // Default to undefined if property doesn't exist
-				};
-			});
-	};
-
-	// Function to generate cohesive canvas with all pixels
-	const generateCohesiveCanvas = () => {
-		if (!selectedSpace || !imageURL) {
-			console.error("No selected space or image URL");
-			return;
-		}
-
-		setIsCohesiveGenerating(true);
-
-		// Get all existing pixels plus the new one being created
-		const allPixelsForCohesive = [
-			...getAllExistingPixels(),
-			// Add the current pixel being created
-			{
-				x: selectedSpace.x,
-				y: selectedSpace.y,
-				color: "#FFFFFF",
-				prompt: prompt || "Pixel art",
-				imageUrl: imageURL
-			}
-		];
-
-		// Call the API to generate a cohesive canvas
-		fetch('/api/generate-cohesive-canvas', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				existingPixels: allPixelsForCohesive,
-				canvasWidth: 64,
-				canvasHeight: 64,
-				newPixel: {
-					x: selectedSpace.x,
-					y: selectedSpace.y,
-					prompt: prompt,
-					imageUrl: imageURL
-				}
-			}),
-		})
-			.then(response => response.json())
-			.then(data => {
-				if (data.imageUrl) {
-					console.log("Cohesive canvas generated:", data.imageUrl);
-					setCohesiveImageUrl(data.imageUrl);
-				} else {
-					console.error("No image URL returned");
-				}
-			})
-			.catch(error => {
-				console.error("Error generating cohesive canvas:", error);
-			})
-			.finally(() => {
-				setIsCohesiveGenerating(false);
-			});
-	};
-
 	const handleGenerate = async () => {
 		if (!selectedSpace || !user.loggedIn || !user.addr) {
 			console.error(
@@ -141,17 +77,17 @@ export default function PurchasePanel({
 			return;
 		}
 
-		setIsSubmitting(true);
-
 		try {
+			setIsSubmitting(true);
 			await acquire({
 				x: selectedSpace.x,
 				y: selectedSpace.y,
 				prompt: prompt,
 				style: style,
 				imageURL: imageURL,
-				flowPaymentAmount: currentPrice.toFixed(8),
-				backendPaymentAmount: currentPrice + 0.01,
+				imageMediaType: "image/jpeg",
+				flowPaymentAmount: pixelPrice === null ? "0" : pixelPrice.toFixed(8),
+				backendPaymentAmount: pixelPrice === null ? 0 : pixelPrice,
 				userId: user.addr,
 			});
 		} catch (error) {
@@ -199,9 +135,21 @@ export default function PurchasePanel({
 			</h2>
 			<div className="mb-4">
 				<div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-4 rounded-lg text-center">
-					<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
-						<Image className="mx-auto h-16 w-16" />
-					</div>
+					{!imageURL && (
+						<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
+							<Image className="mx-auto h-16 w-16" />
+						</div>
+					)}
+					{imageURL && (
+						<div>
+							<p className="text-sm font-medium mb-2">Preview:</p>
+							<img
+								src={imageURL}
+								alt="AI Generated Preview"
+								className="rounded-lg max-h-48 mx-auto"
+							/>
+						</div>
+					)}
 					<p className="text-sm text-gray-500 dark:text-gray-400">
 						Position: ({selectedSpace.x}, {selectedSpace.y})
 					</p>
@@ -218,74 +166,44 @@ export default function PurchasePanel({
 					value={prompt}
 					onChange={(e) => setPrompt(e.target.value)}
 				/>
-
+				<div className="mb-6">
+					<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						Style Preset
+					</label>
+					<select
+						className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
+						value={style}
+						onChange={(e) => setStyle(e.target.value)}
+					>
+						<option>Photorealistic</option>
+						<option>Pixel Art</option>
+						<option>Abstract</option>
+						<option>Cyberpunk</option>
+						<option>Minimalist</option>
+					</select>
+				</div>
 				<AIImageGenerator
 					prompt={prompt}
 					style={style}
 					onImageGenerated={(url) => setImageURL(url)}
 				/>
-
-				{imageURL && (
-					<div className="mt-4 p-2 border border-gray-300 dark:border-gray-600 rounded-lg">
-						<p className="text-sm font-medium mb-2">Preview:</p>
-						<img
-							src={imageURL}
-							alt="AI Generated Preview"
-							className="rounded-lg max-h-60 mx-auto"
-						/>
-					</div>
-				)}
-			</div>
-
-			<div className="mb-6">
-				<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-					Style Preset
-				</label>
-				<select
-					className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
-					value={style}
-					onChange={(e) => setStyle(e.target.value)}
-				>
-					<option>Photorealistic</option>
-					<option>Pixel Art</option>
-					<option>Abstract</option>
-					<option>Cyberpunk</option>
-					<option>Minimalist</option>
-				</select>
 			</div>
 
 			<div className="bg-blue-50 dark:bg-gray-800 p-4 rounded-lg mb-6">
 				<div className="flex justify-between mb-2 text-gray-800 dark:text-gray-300">
 					<span>Price per cell</span>
-					<span className="font-medium">{currentPrice.toFixed(2)} FLOW</span>
+					<span className="font-medium">
+						{pixelPrice ? pixelPrice.toFixed(2) : "0"} FLOW
+					</span>
 				</div>
 
 				<div className="flex justify-between font-bold mt-2 text-gray-900 dark:text-gray-100">
 					<span>Total</span>
-					<span>{currentPrice.toFixed(2)} FLOW</span>
+					<span>{pixelPrice ? pixelPrice.toFixed(2) : "0"} FLOW</span>
 				</div>
 			</div>
 
-			{/* Generate Cohesive Canvas Button - shows after image is generated */}
-			{imageURL && !selectedSpace.isTaken && (
-				<div className="mb-6">
-					<button
-						onClick={generateCohesiveCanvas}
-						disabled={isCohesiveGenerating}
-						className={`w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-medium flex items-center justify-center ${isCohesiveGenerating ? "opacity-50 cursor-not-allowed" : ""
-							}`}
-					>
-						{isCohesiveGenerating ? (
-							<>
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								Generating Cohesive Canvas...
-							</>
-						) : (
-							"Generate Cohesive Canvas"
-						)}
-					</button>
-				</div>
-			)}
+
 
 			{/* Display Cohesive Canvas if available */}
 			{cohesiveImageUrl && (
@@ -314,7 +232,11 @@ export default function PurchasePanel({
 						}`}
 					onClick={handleGenerate}
 					disabled={
-						selectedSpace.isTaken || isGenerating || isSubmitting || !prompt || !imageURL
+						selectedSpace.isTaken ||
+						isGenerating ||
+						isSubmitting ||
+						!prompt ||
+						!imageURL
 					}
 				>
 					{isGenerating ? (

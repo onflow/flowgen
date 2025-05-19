@@ -4,133 +4,168 @@ import "ViewResolver"
 access(all) contract CanvasBackground: NonFungibleToken {
 
     // --- Contract Fields ---
-    access(all) var totalSupply: UInt64 // Will always be 1 after initialization
-    access(all) let CANVAS_WIDTH: UInt16 // To be set during initialization
-    access(all) let CANVAS_HEIGHT: UInt16 // To be set during initialization
+    access(all) var totalSupply: UInt64 // Total number of historical background NFTs minted
+    access(all) let CANVAS_WIDTH: UInt16
+    access(all) let CANVAS_HEIGHT: UInt16
+    access(all) var currentVersionNumber: UInt64 // Tracks the latest version number minted
+    access(all) var latestBackgroundNftID: UInt64? // ID of the most recent background NFT
 
     // --- Paths ---
     access(all) let CollectionStoragePath: StoragePath
     access(all) let CollectionPublicPath: PublicPath
     access(all) let AdminStoragePath: StoragePath
-    // Not using BackgroundNFTPublicPath directly for now, will rely on Collection public path
 
     // --- Events ---
     access(all) event ContractInitialized()
-    access(all) event Withdraw(id: UInt64, from: Address?) // Standard NFT
-    access(all) event Deposit(id: UInt64, to: Address?, isMinting: Bool)  // Standard NFT
-    access(all) event BackgroundNFTMinted(id: UInt64, initialImageHash: String, version: UInt64, canvasWidth: UInt16, canvasHeight: UInt16)
-    access(all) event BackgroundNFTUpdated(id: UInt64, newImageHash: String, newVersion: UInt64, updatedBy: Address)
+    access(all) event Withdraw(id: UInt64, from: Address?)
+    access(all) event Deposit(id: UInt64, to: Address?, isMinting: Bool)
+    // Emitted when a new historical background NFT is minted
+    access(all) event NewBackgroundMinted(
+        id: UInt64,
+        imageHash: String,
+        versionNumber: UInt64,
+        timestamp: UFix64,
+        canvasWidth: UInt16,
+        canvasHeight: UInt16,
+        triggeringPixelID: UInt64?,
+        triggeringEventTransactionID: String?,
+        latestBackgroundNftID: UInt64 // Reports the new latest ID
+    )
+    // No BackgroundNFTUpdated event anymore, as NFTs are immutable snapshots
 
-    // --- NFT Resource ---
+    // --- NFT Resource (Each instance is an immutable historical snapshot) ---
     access(all) resource NFT: NonFungibleToken.NFT, ViewResolver.Resolver {
         access(all) let id: UInt64
-        access(all) var imageHash: String // IPFS CID of the composite canvas image
-        access(all) var version: UInt64
+        access(all) let imageHash: String // IPFS CID of the composite canvas image (immutable per NFT)
+        access(all) let versionNumber: UInt64 // Sequential version for this snapshot
+        access(all) let timestamp: UFix64     // Block timestamp of minting
         access(all) let canvasWidth: UInt16
         access(all) let canvasHeight: UInt16
+        access(all) let triggeringPixelID: UInt64? // Optional: Pixel that triggered this version
+        access(all) let triggeringEventTransactionID: String? // Optional: Tx hash of the triggering event
 
-        init(imageHash: String, version: UInt64, canvasWidth: UInt16, canvasHeight: UInt16) {
-            self.id = 1 // Singleton NFT, always ID 1
+        init(
+            imageHash: String,
+            versionNumber: UInt64,
+            timestamp: UFix64,
+            canvasWidth: UInt16,
+            canvasHeight: UInt16,
+            triggeringPixelID: UInt64?,
+            triggeringEventTransactionID: String?
+        ) {
+            // id is self.uuid, set by NonFungibleToken standard on NFT creation by contract
+            self.id = self.uuid 
             self.imageHash = imageHash
-            self.version = version
+            self.versionNumber = versionNumber
+            self.timestamp = timestamp
             self.canvasWidth = canvasWidth
             self.canvasHeight = canvasHeight
-
-            // total Supply is managed by the contract minting function
+            self.triggeringPixelID = triggeringPixelID
+            self.triggeringEventTransactionID = triggeringEventTransactionID
         }
 
-        // Setter function for imageHash and version
-        access(all) fun updateData(_ newImageHash: String) {
-            self.imageHash = newImageHash
-            self.version = self.version + 1
-        }
+        // updateData function removed as NFT is now an immutable snapshot
 
         access(all) view fun getViews(): [Type] {
             return [
                 Type<MetadataViews.Display>(),
                 Type<MetadataViews.ExternalURL>(),
                 Type<MetadataViews.Media>(),
-                Type<MetadataViews.NFTCollectionData>() // For standard collection discovery
+                Type<MetadataViews.NFTCollectionData>(),
+                Type<MetadataViews.Serial>() // versionNumber can act as a serial
+                // Potentially custom views for timestamp, triggeringPixelID etc.
             ]
         }
 
         access(all) fun resolveView(_ view: Type): AnyStruct? {
             switch view {
                 case Type<MetadataViews.Display>():
-                    let name = "FlowGen Canvas Background - v".concat(self.version.toString())
-                    let description = "The dynamically generated background image for the FlowGen canvas. Resolution: "
-                        .concat(self.canvasWidth.toString()).concat("x").concat(self.canvasHeight.toString())
-                    // It's good practice to ensure imageHash is not empty before forming URL
+                    let name = "FlowGen Canvas Background - v".concat(self.versionNumber.toString())
+                    let description = "Historical background image for the FlowGen canvas. Version: ".concat(self.versionNumber.toString())
+                        .concat(", Timestamp: ").concat(self.timestamp.toString())
+                        .concat(". Resolution: ").concat(self.canvasWidth.toString()).concat("x").concat(self.canvasHeight.toString())
                     let thumbnailURL = self.imageHash == "" ? "https://flowgen.art/placeholder-background.png" : "https://".concat(self.imageHash).concat(".ipfs.w3s.link")
                     let thumbnail = MetadataViews.HTTPFile(url: thumbnailURL)
                     return MetadataViews.Display(name: name, description: description, thumbnail: thumbnail)
                 case Type<MetadataViews.ExternalURL>():
-                    return MetadataViews.ExternalURL("https://flowgen.art/canvas") // Example URL to view the canvas
+                    // Could link to a viewer that shows this specific historical version
+                    return MetadataViews.ExternalURL("https://flowgen.art/canvas?version=".concat(self.versionNumber.toString()))
                 case Type<MetadataViews.Media>():
-                     // It's good practice to ensure imageHash is not empty before forming URL
                     let imageURL = self.imageHash == "" ? "https://flowgen.art/placeholder-background.png" : "https://".concat(self.imageHash).concat(".ipfs.w3s.link")
-                     // Assuming PNG, could be made dynamic if mediaType is stored on NFT
                     return MetadataViews.Media(file: MetadataViews.HTTPFile(url: imageURL), mediaType: "image/png")
                 case Type<MetadataViews.NFTCollectionData>():
                     return CanvasBackground.resolveContractView(resourceType: Type<@CanvasBackground.NFT>(), viewType: Type<MetadataViews.NFTCollectionData>())
+                case Type<MetadataViews.Serial>():
+                    return MetadataViews.Serial(self.versionNumber) // Use versionNumber as serial
             }
             return nil
         }
 
         access(all) fun createEmptyCollection(): @{NonFungibleToken.Collection} {
-            // This NFT type isn't meant to be held in arbitrary user collections in the same way typical NFTs are.
-            // It's a singleton managed by the contract.
-            // However, to satisfy the NonFungibleToken.NFT interface, we provide a way to create its collection type.
             return <- CanvasBackground.createEmptyCollection(nftType: Type<@CanvasBackground.NFT>())
         }
     }
 
     // --- Admin Resource ---
     access(all) resource Admin {
-        // Function to update the existing singleton Background NFT
-        access(all) fun updateBackgroundData(newImageHash: String, updaterAddress: Address) {
-            // Borrow the contract's collection
-            let collectionRef = CanvasBackground.account.storage.borrow<&CanvasBackground.Collection>(from: CanvasBackground.CollectionStoragePath)
-                ?? panic("Could not borrow Background Collection from contract storage.")
-
-            // Borrow the NFT from the collection using the specific type
-            let backgroundNFT = collectionRef.borrowCanvasBackgroundNFT(id: 1) // Use the specific borrow
-                ?? panic("Could not borrow Background NFT with ID 1 from contract's collection.")
-
-            backgroundNFT.updateData(newImageHash) // Use the new setter function
-
-            emit BackgroundNFTUpdated(id: backgroundNFT.id, newImageHash: backgroundNFT.imageHash, newVersion: backgroundNFT.version, updatedBy: updaterAddress)
-        }
-
-        // Function to mint the initial (and only) Background NFT
-        // This should only be callable once, typically during contract deployment/initialization transaction.
-        access(all) fun mintInitialBackgroundNFT(initialImageHash: String, canvasWidth: UInt16, canvasHeight: UInt16): @NFT {
-            pre {
-                CanvasBackground.totalSupply == 0: "Background NFT has already been minted."
-            }
+        // Mints a new historical background NFT
+        access(all) fun mintNewBackground(
+            imageHash: String,
+            triggeringPixelID: UInt64?,
+            triggeringEventTransactionID: String?
+            // canvasWidth and canvasHeight are now contract constants
+        ): @NFT {
+            // Increment version number for the new NFT
+            CanvasBackground.currentVersionNumber = CanvasBackground.currentVersionNumber + 1
+            
             let newNFT <- create NFT(
-                imageHash: initialImageHash,
-                version: 1,
-                canvasWidth: canvasWidth,
-                canvasHeight: canvasHeight
+                imageHash: imageHash,
+                versionNumber: CanvasBackground.currentVersionNumber,
+                timestamp: getCurrentBlock().timestamp,
+                canvasWidth: CanvasBackground.CANVAS_WIDTH,
+                canvasHeight: CanvasBackground.CANVAS_HEIGHT,
+                triggeringPixelID: triggeringPixelID,
+                triggeringEventTransactionID: triggeringEventTransactionID
             )
-            CanvasBackground.totalSupply = 1 // Set total supply
-            emit BackgroundNFTMinted(id: newNFT.id, initialImageHash: newNFT.imageHash, version: newNFT.version, canvasWidth: newNFT.canvasWidth, canvasHeight: newNFT.canvasHeight)
+
+            // Update the latestBackgroundNftID at the contract level
+            CanvasBackground.latestBackgroundNftID = newNFT.id
+            
+            emit NewBackgroundMinted(
+                id: newNFT.id,
+                imageHash: newNFT.imageHash,
+                versionNumber: newNFT.versionNumber,
+                timestamp: newNFT.timestamp,
+                canvasWidth: newNFT.canvasWidth,
+                canvasHeight: newNFT.canvasHeight,
+                triggeringPixelID: newNFT.triggeringPixelID,
+                triggeringEventTransactionID: newNFT.triggeringEventTransactionID,
+                latestBackgroundNftID: newNFT.id // Emit the new latest ID
+            )
+            
+            // totalSupply is handled by the standard Collection deposit logic if needed by NonFungibleToken standard
+            // or explicitly here if we want to track it independently of collection deposits by users
+            // For now, let's assume NonFungibleToken standard handles it via collection.
+            // If this Admin resource also deposits it into a central contract collection, that's where totalSupply would increment.
+
             return <-newNFT
         }
+
+        // mintInitialBackgroundNFT function removed, initial minting will use mintNewBackground
+        // via a setup transaction.
     }
 
-    // --- Standard NFT Collection (to hold the singleton NFT in contract storage) ---
+    // --- Standard NFT Collection (Users could potentially own historical backgrounds) ---
     access(all) resource interface CanvasBackgroundCollectionPublic {
         access(all) fun deposit(token: @{NonFungibleToken.NFT})
         access(all) view fun getIDs(): [UInt64]
-        access(all) view fun borrowNFT(_ id: UInt64): &{NonFungibleToken.NFT}? // Standard NFT interface
+        access(all) view fun borrowNFT(_ id: UInt64): &{NonFungibleToken.NFT}?
         access(all) view fun borrowViewResolver(id: UInt64): &{ViewResolver.Resolver}?
-        access(all) view fun borrowCanvasBackgroundNFT(id: UInt64): &CanvasBackground.NFT? // Specific type
+        // borrowCanvasBackgroundNFT is removed as borrowNFT + downcast OR specific views should suffice
     }
 
     access(all) resource Collection: NonFungibleToken.Collection, CanvasBackgroundCollectionPublic {
-        access(all) var ownedNFTs: @{UInt64: {NonFungibleToken.NFT}} // Corrected dictionary type
+        access(all) var ownedNFTs: @{UInt64: {NonFungibleToken.NFT}}
 
         init() {
             self.ownedNFTs <- {}
@@ -138,19 +173,25 @@ access(all) contract CanvasBackground: NonFungibleToken {
 
         access(NonFungibleToken.Withdraw) fun withdraw(withdrawID: UInt64): @{NonFungibleToken.NFT} {
             let token <- self.ownedNFTs.remove(key: withdrawID) ?? panic("Cannot withdraw non-existent NFT")
-            // Note: Withdrawing the singleton NFT from the contract's own collection would be unusual.
+            emit Withdraw(id: withdrawID, from: self.owner?.address)
             return <-token
         }
 
         access(all) fun deposit(token: @{NonFungibleToken.NFT}) {
             let nft <- token as! @CanvasBackground.NFT
             let id = nft.id
-            if id != 1 || self.ownedNFTs[id] != nil {
-                panic("Cannot deposit this NFT. It must be the singleton (ID 1) and not already present.")
-            }
+            
             let oldToken <- self.ownedNFTs[id] <- nft
-            destroy oldToken // Destroy the old placeholder if any
-            emit Deposit(id: id, to: self.owner?.address, isMinting: (CanvasBackground.totalSupply == 0 && id == 1) )
+            
+            if oldToken == nil { // Only increment totalSupply if it's a new deposit not a replacement (should always be new for this model)
+                CanvasBackground.totalSupply = CanvasBackground.totalSupply + 1
+            }
+            destroy oldToken
+            
+            // isMinting is true if the contract is minting it directly into its own collection.
+            // If a user is depositing an already minted one, it's false.
+            // The mintNewBackground function returns the @NFT, the caller (transaction) deposits it.
+            emit Deposit(id: id, to: self.owner?.address, isMinting: false) 
         }
 
         access(all) view fun getIDs(): [UInt64] {
@@ -162,19 +203,19 @@ access(all) contract CanvasBackground: NonFungibleToken {
         }
 
         access(all) view fun borrowViewResolver(id: UInt64): &{ViewResolver.Resolver}? {
-            if let nft = self.borrowNFT(id) { // This returns &{NonFungibleToken.NFT}?
-                 return nft // This should be valid if NFT implements it
+            // First, try to get the concrete &CanvasBackground.NFT type
+            // self.borrowNFT(id) returns &{NonFungibleToken.NFT}?
+            // Casting it to &CanvasBackground.NFT? and then unwrapping with if let:
+            if let concreteNft = self.borrowNFT(id) as? &CanvasBackground.NFT {
+                // concreteNft is now &CanvasBackground.NFT (non-optional)
+                // Since CanvasBackground.NFT implements ViewResolver.Resolver, this upcast is direct.
+                return concreteNft as &{ViewResolver.Resolver}
             }
             return nil
         }
+        
+        // borrowCanvasBackgroundNFT removed, use borrowNFT and downcast if specific type is needed by caller.
 
-        access(all) view fun borrowCanvasBackgroundNFT(id: UInt64): &CanvasBackground.NFT? {
-            if id != 1 { return nil } // Only ID 1 is valid
-            let nftRef: &{NonFungibleToken.NFT}? = &self.ownedNFTs[id]
-            return nftRef as? &CanvasBackground.NFT
-        }
-
-        // Conformance to NonFungibleToken.Collection
         access(all) view fun getSupportedNFTTypes(): {Type: Bool} {
             let supportedTypes: {Type: Bool} = {}
             supportedTypes[Type<@CanvasBackground.NFT>()] = true
@@ -191,27 +232,24 @@ access(all) contract CanvasBackground: NonFungibleToken {
     }
 
     // --- Contract Initializer ---
-    init(canvasWidth: UInt16, canvasHeight: UInt16, initialEmptyCanvasHash: String) {
-        self.totalSupply = 0 // Will be set to 1 by mintInitialBackgroundNFT
+    init(canvasWidth: UInt16, canvasHeight: UInt16 /* initialEmptyCanvasHash no longer needed here */) {
+        self.totalSupply = 0
         self.CANVAS_WIDTH = canvasWidth
         self.CANVAS_HEIGHT = canvasHeight
+        self.currentVersionNumber = 0 // Initial version before any mints
+        self.latestBackgroundNftID = nil // No background NFT minted yet
 
-        self.CollectionStoragePath = /storage/canvasBackgroundSingletonCollection
-        self.CollectionPublicPath = /public/canvasBackgroundSingletonCollection
+        self.CollectionStoragePath = /storage/canvasBackgroundHistoricalCollection
+        self.CollectionPublicPath = /public/canvasBackgroundHistoricalCollection
         self.AdminStoragePath = /storage/canvasBackgroundAdmin
 
-        // Create and save the Admin resource
         let admin <- create Admin()
         self.account.storage.save(<-admin, to: self.AdminStoragePath)
-
-        // The contract deployer will then call a transaction to:
-        // 1. Borrow the Admin resource.
-        // 2. Call admin.mintInitialBackgroundNFT().
-        // 3. Create a new CanvasBackground.Collection.
-        // 4. Deposit the minted NFT into this collection.
-        // 5. Save this collection to self.CollectionStoragePath.
-        // 6. Link the public capability to this collection at self.CollectionPublicPath.
-        // This is done in a separate transaction to follow best practices for initialization.
+        
+        // A separate transaction by the deployer will call Admin.mintNewBackground
+        // with an initial state (e.g., blank canvas hash) to create version 1.
+        // That transaction will also likely set up a public capability to the collection
+        // if users are meant to browse/hold these historical NFTs.
 
         emit ContractInitialized()
     }
@@ -220,6 +258,8 @@ access(all) contract CanvasBackground: NonFungibleToken {
         return <- create Collection()
     }
 
+    // getContractViews and resolveContractView remain largely the same,
+    // but NFTCollectionDisplay name/description can be updated to reflect historical collection.
     access(all) view fun getContractViews(resourceType: Type?): [Type] {
         return [
             Type<MetadataViews.NFTCollectionData>(),
@@ -241,36 +281,22 @@ access(all) contract CanvasBackground: NonFungibleToken {
                 )
             case Type<MetadataViews.NFTCollectionDisplay>():
                 let media = MetadataViews.Media(
-                    file: MetadataViews.HTTPFile(url: "https://flowgen.art/default-canvas-background-collection.png"), // Placeholder
+                    file: MetadataViews.HTTPFile(url: "https://flowgen.art/default-canvas-background-collection-historical.png"), // Placeholder
                     mediaType: "image/png"
                 )
                 return MetadataViews.NFTCollectionDisplay(
-                    name: "FlowGen Canvas Background",
-                    description: "The dynamic background image of the FlowGen collaborative canvas.",
-                    externalURL: MetadataViews.ExternalURL("https://flowgen.art/canvas"),
+                    name: "FlowGen Canvas Background - Historical Collection",
+                    description: "A collection of all historical states of the FlowGen collaborative canvas background.",
+                    externalURL: MetadataViews.ExternalURL("https://flowgen.art/canvas-history"),
                     squareImage: media,
                     bannerImage: media,
-                    socials: {} // Add any relevant social links
+                    socials: {}
                 )
         }
         return nil
     }
 
-    // --- Public function to easily borrow a view of the Background NFT ---
-    access(all) fun getBackgroundNFTView(): &CanvasBackground.NFT? {
-        let collectionCap = self.account.capabilities.get<&{CanvasBackground.CanvasBackgroundCollectionPublic}>(CanvasBackground.CollectionPublicPath)
-
-        if !collectionCap.check() {
-            // If the capability doesn't exist or is invalid, panic or return nil
-            // For a critical piece of public data, panicking might be appropriate if it's expected to always be there post-setup.
-            panic("CanvasBackgroundCollectionPublic capability is not available or invalid at ".concat(CanvasBackground.CollectionPublicPath.toString()))
-            // return nil
-        }
-
-        let collectionRef = collectionCap.borrow()
-            ?? panic("Failed to borrow CanvasBackgroundCollectionPublic from ".concat(CanvasBackground.CollectionPublicPath.toString()))
-            // ?? return nil (if you prefer not to panic)
-
-        return collectionRef.borrowCanvasBackgroundNFT(id: 1) // ID is always 1
-    }
+    // getBackgroundNFTView is removed as we now have latestBackgroundNftID.
+    // A script would be used to fetch the NFT data using this ID.
+    // e.g., a script getLatestBackgroundInfo() -> CanvasBackground.NFT? or specific fields.
 }

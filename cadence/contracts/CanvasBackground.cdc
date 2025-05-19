@@ -239,24 +239,24 @@ access(all) contract CanvasBackground: NonFungibleToken {
     }
 
     // --- Contract Initializer ---
-    init(canvasWidth: UInt16, canvasHeight: UInt16 /* initialEmptyCanvasHash no longer needed here */) {
+    init(canvasWidth: UInt16, canvasHeight: UInt16) {
         self.totalSupply = 0
         self.CANVAS_WIDTH = canvasWidth
         self.CANVAS_HEIGHT = canvasHeight
         self.currentVersionNumber = 0 // Initial version before any mints
-        self.latestBackgroundNftID = nil // No background NFT minted yet
+        self.latestBackgroundNftID = nil // No background NFT minted yet by init
 
         self.CollectionStoragePath = /storage/canvasBackgroundHistoricalCollection
         self.CollectionPublicPath = /public/canvasBackgroundHistoricalCollection
         self.AdminStoragePath = /storage/canvasBackgroundAdmin
 
-        let admin <- create Admin()
-        self.account.storage.save(<-admin, to: self.AdminStoragePath)
+        // Create and save the Admin resource
+        let adminResource <- create Admin()
+        self.account.storage.save(<-adminResource, to: self.AdminStoragePath)
         
-        // A separate transaction by the deployer will call Admin.mintNewBackground
-        // with an initial state (e.g., blank canvas hash) to create version 1.
-        // That transaction will also likely set up a public capability to the collection
-        // if users are meant to browse/hold these historical NFTs.
+        // The first background NFT will be minted by a separate transaction (InitializeCanvasBackground.cdc)
+        // That transaction will also be responsible for any initial setup of a contract-owned collection if desired,
+        // or publishing capabilities if needed beyond what standard client libraries handle for user collections.
 
         emit ContractInitialized()
     }

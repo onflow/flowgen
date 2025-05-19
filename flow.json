@@ -122,16 +122,38 @@
 		"emulator": {
 			"emulator-account": [
 				"FooBar",
-				"FlowGenPixel",
+				{
+					"name": "FlowGenPixel",
+					"args": [{ "type": "Address", "value": "0xf8d6e0586b0a20c7" }]
+				},
 				"FlowGenAiImage",
-				"PixelPriceCalculator"
+				"PixelPriceCalculator",
+				{
+					"name": "CanvasBackground",
+					"args": [
+						{ "type": "UInt16", "value": "16" },
+						{ "type": "UInt16", "value": "16" }
+					]
+				}
 			]
 		},
 		"testnet": {
 			"admin-testnet": [
 				"FlowGenPixel",
+				{
+					"name": "FlowGenPixel",
+					"args": [{ "type": "Address", "value": "0x832e53531bdc8fc5" }]
+				},
 				"FlowGenAiImage",
-				"PixelPriceCalculator"
+				"PixelPriceCalculator",
+				"CanvasBackground",
+				{
+					"name": "CanvasBackground",
+					"args": [
+						{ "type": "UInt16", "value": "16" },
+						{ "type": "UInt16", "value": "16" }
+					]
+				}
 			]
 		}
 	}

@@ -273,7 +273,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         self.CENTER_MAX_PRICE_TARGET_MULTIPLIER = 3.0 // Price can triple due to scarcity
         self.SCARCITY_PREMIUM_FACTOR = 20.0 // Price can triple due to scarcity
 
-        self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = 0xf8d6e0586b0a20c7 // TODO: REPLACE with actual primary sale fee receiver for pixels
+        self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = 0x832e53531bdc8fc5 // TODO: REPLACE with actual primary sale fee receiver for pixels
         self.registeredPixelKeys = {}
 
         // Path initializations (consider versioning paths, e.g., "V1")

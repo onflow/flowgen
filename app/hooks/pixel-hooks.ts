@@ -30,7 +30,7 @@ import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
 import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc"; // Re-add this import
 import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
 import GET_PIXEL_PRICE_CDC from "@/cadence/scripts/GetPixelPrice.cdc";
-import GET_LATEST_BACKGROUND_INFO_CDC from "@/cadence/scripts/canvas/get-latest-background-info.cdc"; // Import new script
+import GET_LATEST_BACKGROUND_INFO_CDC from "@/cadence/scripts/GetLatestBackgroundInfo.cdc"; // Import new script
 import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 import { CuteArtStyle, generateStyledPrompt } from "@/lib/prompt-style";
 import * as t from "@onflow/types"; // Ensure t is imported
@@ -620,12 +620,17 @@ export const getIpfsUrl = (
 	gateway?: string
 ): string | null => {
 	if (!hash) return null;
-	const ipfsGateway =
-		gateway || process.env.NEXT_PUBLIC_IPFS_GATEWAY || "https://w3s.link/ipfs/";
-	return `${ipfsGateway}${hash}`;
+	return `https://${hash}.ipfs.w3s.link`;
+};
+type BackgroundInfo = {
+	data: LatestBackgroundInfo | null;
+	imageUrl: string | null;
+	isLoading: boolean;
+	error: Error | null;
+	refetch: () => void;
 };
 
-export function useCurrentBackgroundInfo() {
+export function useCurrentBackgroundInfo(): BackgroundInfo {
 	const adminAddress = process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS;
 
 	const {

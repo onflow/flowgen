@@ -1,7 +1,8 @@
-import NonFungibleToken from "NonFungibleToken" // For NFT interfaces
-import ViewResolver from "ViewResolver"       // For Resolver interface
-import MetadataViews from "MetadataViews"     // For Display and other views
-import CanvasBackground from "CanvasBackground" // Your specific contract
+import "NonFungibleToken" // For NFT interfaces
+import "ViewResolver"       // For Resolver interface
+import "MetadataViews"     // For Display and other views
+import "CanvasBackground" // Your specific contract
+import "FlowGenPixel"
 
 // Struct for the return type remains useful
 access(all) struct LatestBackgroundInfo {

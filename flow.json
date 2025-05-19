@@ -139,14 +139,12 @@
 		},
 		"testnet": {
 			"admin-testnet": [
-				"FlowGenPixel",
 				{
 					"name": "FlowGenPixel",
 					"args": [{ "type": "Address", "value": "0x832e53531bdc8fc5" }]
 				},
 				"FlowGenAiImage",
 				"PixelPriceCalculator",
-				"CanvasBackground",
 				{
 					"name": "CanvasBackground",
 					"args": [

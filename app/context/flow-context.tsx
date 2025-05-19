@@ -34,6 +34,8 @@ const FLOW_CONFIG: FlowConfig =
 		? TESTNET_CONFIG
 		: EMULATOR_CONFIG;
 
+console.log("FLOW_CONFIG", FLOW_CONFIG);
+
 // Main Flow provider component
 export function FlowContextProvider({ children }: FlowContextProviderProps) {
 	return (

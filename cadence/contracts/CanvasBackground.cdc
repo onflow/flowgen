@@ -1,6 +1,7 @@
 import "NonFungibleToken"
 import "MetadataViews"
 import "ViewResolver"
+
 access(all) contract CanvasBackground: NonFungibleToken {
 
     // --- Contract Fields ---

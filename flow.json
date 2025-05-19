@@ -81,6 +81,13 @@
 				"location": "keys/admin.pkey"
 			}
 		},
+		"admin-testnet": {
+			"address": "0x832e53531bdc8fc5",
+			"key": {
+				"type": "file",
+				"location": "keys/admin-flowgen.pkey"
+			}
+		},
 		"emulator-account": {
 			"address": "f8d6e0586b0a20c7",
 			"key": {
@@ -107,6 +114,13 @@
 		"emulator": {
 			"emulator-account": [
 				"FooBar",
+				"FlowGenPixel",
+				"FlowGenAiImage",
+				"PixelPriceCalculator"
+			]
+		},
+		"testnet": {
+			"admin-testnet": [
 				"FlowGenPixel",
 				"FlowGenAiImage",
 				"PixelPriceCalculator"

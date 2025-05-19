@@ -6,6 +6,11 @@ alwaysApply: false
 # Flow/Cadence Development Rules & Best Practices (for Cursor/React)
 
 This document summarizes key learnings and common patterns for developing Flow blockchain applications using Cadence, FCL, and `@onflow/kit` within a React/Next.js environment, particularly aimed at avoiding common pitfalls.
+## 0. NextJS setup
+- NextJS 15 with app router
+- Hosted on Vercel
+- Uses pnpm for packages
+
 
 ## 1. Cadence Script/Transaction Imports in Frontend
 

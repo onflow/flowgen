@@ -85,6 +85,9 @@
 			"address": "0x832e53531bdc8fc5",
 			"key": {
 				"type": "file",
+				"index": 0,
+				"signatureAlgorithm": "ECDSA_secp256k1",
+				"hashAlgorithm": "SHA2_256",
 				"location": "keys/admin-flowgen.pkey"
 			}
 		},

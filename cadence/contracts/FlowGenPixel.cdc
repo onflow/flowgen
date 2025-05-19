@@ -29,7 +29,8 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     access(all) event Deposit(id: UInt64, to: Address?, isMinting: Bool) // isMinting is new in Cadence 1.0 NFT standard
 
     // Custom event for this contract
-    access(all) event PixelMinted(id: UInt64, x: UInt16, y: UInt16, aiImageNftID: UInt64) // Updated event
+    access(all) event PixelMinted(id: UInt64, x: UInt16, y: UInt16, initialAiImageNftID: UInt64)
+    access(all) event PixelImageUpdated(pixelId: UInt64, newAiImageNftID: UInt64, x: UInt16, y: UInt16) // New event for image updates
 
     // For tracking minted pixels to ensure uniqueness using a String key "x,y"
     access(contract) var registeredPixelKeys: {String: UInt64}
@@ -39,7 +40,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         access(all) let id: UInt64
         access(all) let x: UInt16
         access(all) let y: UInt16
-        access(all) let aiImageNftID: UInt64 // Added field to link to the AI Image NFT
+        access(all) var aiImageNftID: UInt64 // Changed to var to allow updates, corrected syntax
 
         init(
             x: UInt16,
@@ -95,6 +96,20 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                     return FlowGenPixel.resolveContractView(resourceType: Type<@FlowGenPixel.NFT>(), viewType: Type<MetadataViews.NFTCollectionDisplay>())
             }
             return nil
+        }
+
+        // New function to update the AI Image NFT ID
+        // This function should only be callable by the owner of the NFT.
+        // Additional checks (e.g., that the caller also owns the new aiImageNftID in FlowGenAiImage contract)
+        // would typically be handled by a calling transaction or orchestrator contract.
+        access(all) fun updateAiImageNftID(newAiImageNftID: UInt64) {
+            // TODO: Consider adding a check here or in a calling contract/transaction
+            // to ensure the owner of this PixelNFT also owns the FlowGenAiImage.NFT with newAiImageNftID.
+            // This is important to prevent someone from setting an image they don't own.
+            // For now, we assume this check is done by the caller.
+
+            self.aiImageNftID = newAiImageNftID
+            emit PixelImageUpdated(pixelId: self.id, newAiImageNftID: newAiImageNftID, x: self.x, y: self.y)
         }
     }
 
@@ -170,7 +185,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
             FlowGenPixel.registeredPixelKeys[pixelKeyStr] = nftID
             FlowGenPixel.totalPixelsSold = FlowGenPixel.totalPixelsSold + 1
             
-            emit PixelMinted(id: nftID, x: x, y: y, aiImageNftID: aiImageNftID)
+            emit PixelMinted(id: nftID, x: x, y: y, initialAiImageNftID: aiImageNftID)
             return <-newPixelNFT
         }
     }

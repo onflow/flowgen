@@ -29,10 +29,15 @@ const EMULATOR_CONFIG: FlowConfig = {
 	flowNetwork: "emulator",
 	discoveryWallet: "https://fcl-discovery.onflow.org/emulator/authn",
 };
+const FLOW_CONFIG: FlowConfig =
+	process.env.NEXT_PUBLIC_FLOW_NETWORK === "testnet"
+		? TESTNET_CONFIG
+		: EMULATOR_CONFIG;
+
 // Main Flow provider component
 export function FlowContextProvider({ children }: FlowContextProviderProps) {
 	return (
-		<FlowProvider config={TESTNET_CONFIG} flowJson={flowJson}>
+		<FlowProvider config={FLOW_CONFIG} flowJson={flowJson}>
 			{children}
 		</FlowProvider>
 	);

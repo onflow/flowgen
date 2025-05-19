@@ -166,7 +166,7 @@ export default function PurchasePanel({
 						onChange={(e) => setStyle(e.target.value as CuteArtStyle)}
 					>
 						{CUTE_ART_STYLES.map((artStyle: CuteArtStyle) => (
-							<option value={artStyle}>
+							<option key={artStyle} value={artStyle}>
 								{CUTE_ART_STYLE_LABELS[artStyle]}
 							</option>
 						))}

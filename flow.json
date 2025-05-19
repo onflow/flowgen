@@ -9,10 +9,16 @@
 		"FlowGenPixel": {
 			"source": "cadence/contracts/FlowGenPixel.cdc",
 			"aliases": {
-				"testing": "0000000000000007"
+				"testing": "0000000000000008"
 			}
 		},
-		"FooBar": "cadence/contracts/FooBar.cdc"
+		"FooBar": "cadence/contracts/FooBar.cdc",
+		"PixelPriceCalculator": {
+			"source": "cadence/contracts/PixelPriceCalculator.cdc",
+			"aliases": {
+				"testing": "0000000000000009"
+			}
+		}
 	},
 	"dependencies": {
 		"Burner": {
@@ -99,7 +105,12 @@
 	},
 	"deployments": {
 		"emulator": {
-			"emulator-account": ["FooBar", "FlowGenPixel", "FlowGenAiImage"]
+			"emulator-account": [
+				"FooBar",
+				"FlowGenPixel",
+				"FlowGenAiImage",
+				"PixelPriceCalculator"
+			]
 		}
 	}
 }

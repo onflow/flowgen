@@ -32,7 +32,7 @@ const EMULATOR_CONFIG: FlowConfig = {
 // Main Flow provider component
 export function FlowContextProvider({ children }: FlowContextProviderProps) {
 	return (
-		<FlowProvider config={EMULATOR_CONFIG} flowJson={flowJson}>
+		<FlowProvider config={TESTNET_CONFIG} flowJson={flowJson}>
 			{children}
 		</FlowProvider>
 	);

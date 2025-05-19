@@ -4,6 +4,7 @@ import "NonFungibleToken"
 import "MetadataViews" // Assuming this import correctly brings ViewResolver's members into scope too
 import "FungibleToken"
 import "FlowGenAiImage" // Added import
+import "PixelPriceCalculator"
 
 access(all) contract FlowGenPixel: NonFungibleToken {
 
@@ -13,10 +14,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     access(all) let CANVAS_HEIGHT: UInt16
     access(all) let MAX_SUPPLY: UInt64
     access(all) let BASE_PRICE: UFix64
-    access(all) let MID_TIER_PRICE_MULTIPLIER: UFix64
-    access(all) let CENTER_TIER_PRICE_MULTIPLIER: UFix64
-    access(all) let MID_TIER_THRESHOLD_PERCENT: UFix64
-    access(all) let EDGE_TIER_THRESHOLD_PERCENT: UFix64
+    access(all) let CENTER_MAX_PRICE_TARGET_MULTIPLIER: UFix64
     access(all) let SCARCITY_PREMIUM_FACTOR: UFix64
     access(all) let PIXEL_SALE_FEE_RECEIVER_ADDRESS: Address
 
@@ -71,8 +69,12 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         access(all) fun resolveView(_ view: Type): AnyStruct? {
             switch view {
                 case Type<MetadataViews.Display>():
-                    // Placeholder for pixel thumbnail - this needs design decision
-                    let pixelThumbnail = MetadataViews.HTTPFile(url: "https://flowgen.art/pixel_placeholder.png") 
+                    // Dynamic URL for pixel thumbnail
+                    let thumbnailUrl = "https://flowgen.art/api/pixel-image/"
+                        .concat(self.x.toString())
+                        .concat("/")
+                        .concat(self.y.toString())
+                    let pixelThumbnail = MetadataViews.HTTPFile(url: thumbnailUrl)
                     let nameString = "Pixel (".concat(self.x.toString()).concat(", ").concat(self.y.toString()).concat(")")
                     let descriptionString = "A pixel on the FlowGen Canvas at coordinates (".concat(self.x.toString()).concat(", ").concat(self.y.toString()).concat(") displaying Artwork ID: ").concat(self.aiImageNftID.toString())
                     return MetadataViews.Display(
@@ -81,10 +83,10 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                         thumbnail: pixelThumbnail
                     )
                 case Type<MetadataViews.ExternalURL>():
-                    // URL to the pixel on the platform, e.g., /pixel/10,20
-                    let url = "https://flowgen.art/pixel/"
+                    // URL to the pixel on the platform, e.g., /api/pixel-image/10,20
+                    let url = "https://flowgen.art?x="
                         .concat(self.x.toString())
-                        .concat("-")
+                        .concat("&y=")
                         .concat(self.y.toString())
                     return MetadataViews.ExternalURL(url)
                 case Type<MetadataViews.NFTCollectionData>():
@@ -210,45 +212,18 @@ access(all) contract FlowGenPixel: NonFungibleToken {
 
     // --- Pricing Algorithm Function ---
     access(all) view fun getCurrentPixelPrice(x: UInt16, y: UInt16): UFix64 {
-        // Calculate center coordinates (as UFix64 for precision in division)
-        let centerX = UFix64(self.CANVAS_WIDTH) / 2.0
-        let centerY = UFix64(self.CANVAS_HEIGHT) / 2.0
-
-        // Calculate Manhattan distance from center
-        let xUFix64 = UFix64(x)
-        let yUFix64 = UFix64(y)
-        
-        let absDx = (xUFix64 > centerX) ? (xUFix64 - centerX) : (centerX - xUFix64)
-        let absDy = (yUFix64 > centerY) ? (yUFix64 - centerY) : (centerY - yUFix64)
-        let manhattanDist = absDx + absDy
-
-        // Calculate max possible Manhattan distance from center (e.g., from center to a corner or farthest edge midpoint)
-        // For simplicity, to (0,0) from center, or (width, height) from center. Max is to a corner.
-        // Max manhattan distance is to a corner from the center: centerX + centerY (if center is 0,0 of a quadrant)
-        let maxManhattanDist = centerX + centerY
-
-        var locationPriceMultiplier = 1.0 // Default to base multiplier (edge tier)
-        if maxManhattanDist > 0.0 { // Avoid division by zero if canvas is 1x1 or 0x0
-            let normalizedManhattanDist = manhattanDist / maxManhattanDist
-            if normalizedManhattanDist <= self.MID_TIER_THRESHOLD_PERCENT { // Center Tier
-                locationPriceMultiplier = self.CENTER_TIER_PRICE_MULTIPLIER
-            } else if normalizedManhattanDist <= self.EDGE_TIER_THRESHOLD_PERCENT { // Mid Tier
-                locationPriceMultiplier = self.MID_TIER_PRICE_MULTIPLIER
-            } // Else: Edge Tier, multiplier remains 1.0 (implicitly for BASE_PRICE)
-        }
-        
-        let priceBasedOnLocation = self.BASE_PRICE * locationPriceMultiplier
-
-        // Calculate Scarcity Multiplier
-        var scarcityMultiplier = 1.0
-        if self.MAX_SUPPLY > 0 { // Avoid division by zero
-            let percentageSold = UFix64(self.totalPixelsSold) / UFix64(self.MAX_SUPPLY)
-            // Linear increase: starts at 1.0, goes up to SCARCITY_PREMIUM_FACTOR
-            scarcityMultiplier = 1.0 + ((self.SCARCITY_PREMIUM_FACTOR - 1.0) * percentageSold)
-        }
-
-        let finalPrice = priceBasedOnLocation * scarcityMultiplier
-        return finalPrice
+       
+       return PixelPriceCalculator.calculatePrice(
+            x: x,
+            y: y,
+            canvasWidth: self.CANVAS_WIDTH,
+            canvasHeight: self.CANVAS_HEIGHT,
+            basePrice: self.BASE_PRICE,
+            maxSupply: self.MAX_SUPPLY,
+            totalPixelsSold: self.totalPixelsSold,
+            centerMaxPriceTargetMultiplier: self.CENTER_MAX_PRICE_TARGET_MULTIPLIER,
+            scarcityPremiumFactor: self.SCARCITY_PREMIUM_FACTOR
+        )
     }
     // --- End Pricing Algorithm Function ---
 
@@ -275,17 +250,20 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                 )
             case Type<MetadataViews.NFTCollectionDisplay>():
                 let media = MetadataViews.Media(
-                    file: MetadataViews.HTTPFile(url: "https://flowgen.art/flowgen.png"),
+                    file: MetadataViews.HTTPFile(url: "https://bafybeidjl5s3aydzhrd352phxumlyqmzv7khgi4ndne6pqmaqu5nyhn6gy.ipfs.w3s.link/"),
                     mediaType: "image/*"
                 )
                 return MetadataViews.NFTCollectionDisplay(
                     name: "FlowGen Pixel Collection",
                     description: "A collection of AI-generated pixels on the FlowGen Canvas. Resolution: ".concat(self.CANVAS_WIDTH.toString()).concat("x").concat(self.CANVAS_HEIGHT.toString()),
-                    externalURL: MetadataViews.ExternalURL("https://flowgen.art/collection"),
+                    externalURL: MetadataViews.ExternalURL("https://flowgen.art"),
                     squareImage: media,
                     bannerImage: media,
                     socials: {
-                        "twitter": MetadataViews.ExternalURL("https://twitter.com/YourFlowGenProject")
+                        "twitter": MetadataViews.ExternalURL("https://x.com/flow_blockchain"),
+                        "discord": MetadataViews.ExternalURL("https://discord.gg/flow"),
+                        "telegram": MetadataViews.ExternalURL("https://t.me/flowblockchain"),
+                        "website": MetadataViews.ExternalURL("https://flowgen.art")
                     }
                 )
         }
@@ -299,13 +277,10 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         self.MAX_SUPPLY = UInt64(self.CANVAS_WIDTH) * UInt64(self.CANVAS_HEIGHT)
 
         self.BASE_PRICE = 10.0 // e.g., 10 FLOW for edge pixels
-        self.MID_TIER_PRICE_MULTIPLIER = 2.0
-        self.CENTER_TIER_PRICE_MULTIPLIER = 4.0
-        self.MID_TIER_THRESHOLD_PERCENT = 0.33 // Inner 33% of (max) Manhattan distance = Center Tier
-        self.EDGE_TIER_THRESHOLD_PERCENT = 0.66 // Next 33% (up to 66% of max) = Mid Tier, >66% = Edge Tier
+        self.CENTER_MAX_PRICE_TARGET_MULTIPLIER = 3.0 // Price can triple due to scarcity
         self.SCARCITY_PREMIUM_FACTOR = 20.0 // Price can triple due to scarcity
 
-        self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = 0xf8d6e0586b0a20c7 // TODO: REPLACE with actual primary sale fee receiver for pixels
+        self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = 0x832e53531bdc8fc5 // TODO: REPLACE with actual primary sale fee receiver for pixels
         self.registeredPixelKeys = {}
 
         // Path initializations (consider versioning paths, e.g., "V1")

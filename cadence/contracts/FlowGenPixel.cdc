@@ -5,7 +5,7 @@ import "MetadataViews" // Assuming this import correctly brings ViewResolver's m
 import "FungibleToken"
 import "FlowGenAiImage" // Added import
 import "PixelPriceCalculator"
-import "CanvasBackground" // Added import for CanvasBackground
+// import "CanvasBackground" // REVERTED: Removed import
 
 access(all) contract FlowGenPixel: NonFungibleToken {
 
@@ -34,10 +34,10 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         id: UInt64,
         x: UInt16,
         y: UInt16,
-        initialAiImageNftID: UInt64,
-        backgroundNftIDAtPurchase: UInt64 // Added field
+        initialAiImageNftID: UInt64
+        // backgroundNftIDAtPurchase: UInt64 // REVERTED: Removed field
     )
-    access(all) event PixelImageUpdated(pixelId: UInt64, newAiImageNftID: UInt64, x: UInt16, y: UInt16) // New event for image updates
+    access(all) event PixelImageUpdated(pixelId: UInt64, newAiImageNftID: UInt64, x: UInt16, y: UInt16)
 
     // For tracking minted pixels to ensure uniqueness using a String key "x,y"
     access(contract) var registeredPixelKeys: {String: UInt64}
@@ -47,22 +47,22 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         access(all) let id: UInt64
         access(all) let x: UInt16
         access(all) let y: UInt16
-        access(all) var aiImageNftID: UInt64 // Changed to var to allow updates, corrected syntax
-        access(all) let backgroundNftIDAtPurchase: UInt64 // ID of CanvasBackground.NFT at time of purchase
-        access(all) var backgroundNftIDResultingFromLastUpdate: UInt64? // ID of CanvasBackground.NFT minted due to this pixel's image update
+        access(all) var aiImageNftID: UInt64 // This was already var, remains var
+        // access(all) let backgroundNftIDAtPurchase: UInt64 // REVERTED: Removed field
+        // access(all) var backgroundNftIDResultingFromLastUpdate: UInt64? // REVERTED: Removed field
 
         init(
             x: UInt16,
             y: UInt16,
-            aiImageNftID: UInt64,
-            backgroundNftIDAtPurchase: UInt64 // Added parameter
+            aiImageNftID: UInt64
+            // backgroundNftIDAtPurchase: UInt64 // REVERTED: Removed parameter
         ) {
             self.id = self.uuid 
             self.x = x
             self.y = y
             self.aiImageNftID = aiImageNftID
-            self.backgroundNftIDAtPurchase = backgroundNftIDAtPurchase
-            self.backgroundNftIDResultingFromLastUpdate = nil // Initialize as nil
+            // self.backgroundNftIDAtPurchase = backgroundNftIDAtPurchase // REVERTED
+            // self.backgroundNftIDResultingFromLastUpdate = nil // REVERTED
             // Royalties are now handled by FlowGenAiImage.NFT
         }
 
@@ -180,8 +180,8 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         access(all) fun internalMintPixelNFT(
             x: UInt16,
             y: UInt16,
-            aiImageNftID: UInt64,
-            backgroundNftIDAtPurchase: UInt64 // Added parameter
+            aiImageNftID: UInt64
+            // backgroundNftIDAtPurchase: UInt64 // REVERTED: Removed parameter
         ): @NFT {
             let pixelKeyStr = x.toString().concat(",").concat(y.toString())
             if FlowGenPixel.registeredPixelKeys[pixelKeyStr] != nil {
@@ -191,8 +191,8 @@ access(all) contract FlowGenPixel: NonFungibleToken {
             let newPixelNFT <- create NFT(
                 x: x,
                 y: y,
-                aiImageNftID: aiImageNftID,
-                backgroundNftIDAtPurchase: backgroundNftIDAtPurchase // Pass to NFT init
+                aiImageNftID: aiImageNftID
+                // backgroundNftIDAtPurchase: backgroundNftIDAtPurchase // REVERTED
             )
             
             let nftID = newPixelNFT.id
@@ -203,8 +203,8 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                 id: nftID,
                 x: x,
                 y: y,
-                initialAiImageNftID: aiImageNftID,
-                backgroundNftIDAtPurchase: backgroundNftIDAtPurchase // Emit new field
+                initialAiImageNftID: aiImageNftID
+                // backgroundNftIDAtPurchase: backgroundNftIDAtPurchase // REVERTED
             )
             return <-newPixelNFT
         }
@@ -216,7 +216,6 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         y: UInt16,
         aiImageNftID: UInt64,
         payment: @{FungibleToken.Vault}
-        // recipientCollection and buyerAddress removed as deposit is handled by caller transaction
     ): @NFT {
         // 1. Validate Payment
         let currentPrice = FlowGenPixel.getCurrentPixelPrice(x: x, y: y)
@@ -227,34 +226,22 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         // 2. Deposit Payment
         let feeReceiverCap = getAccount(FlowGenPixel.PIXEL_SALE_FEE_RECEIVER_ADDRESS)
             .capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-            // Using .borrow() directly assumes capability is already linked and valid.
-            // For robustness in production, consider .check() before .borrow() or use .borrow<&{FungibleToken.Receiver}>()! for immediate panic on failure.
         let feeReceiver = feeReceiverCap.borrow()
             ?? panic("Could not borrow FungibleToken.Receiver for PIXEL_SALE_FEE_RECEIVER_ADDRESS")
         
         feeReceiver.deposit(from: <-payment)
 
-        // 3. Get the latest background NFT ID BEFORE this pixel potentially causes a new background update
-        // This requires CanvasBackground contract to be deployed and accessible.
-        // The `latestBackgroundNftID` might be nil if no backgrounds have been minted yet (e.g., initial setup).
-        // Handle nil case: if no background exists yet, perhaps use 0 or a specific sentinel value, or panic if a background is expected.
-        // For simplicity, we'll assume CanvasBackground.latestBackgroundNftID will return a valid ID or we panic.
-        // A more robust solution might involve passing this in or handling the nil case gracefully.
-        let currentLatestBackgroundID = CanvasBackground.latestBackgroundNftID 
-            ?? panic("CanvasBackground.latestBackgroundNftID is nil. Ensure CanvasBackground is initialized and has at least one version.")
-
-        // 4. Mint Pixel using internal minter
+        // Mint Pixel using internal minter
         let minter = self.account.storage.borrow<&NFTMinter>(from: self.MinterStoragePath)
             ?? panic("Could not borrow NFTMinter from contract storage")
         
         let newNFT <- minter.internalMintPixelNFT(
             x: x,
             y: y,
-            aiImageNftID: aiImageNftID,
-            backgroundNftIDAtPurchase: currentLatestBackgroundID // Pass the fetched ID
+            aiImageNftID: aiImageNftID
+            // backgroundNftIDAtPurchase: currentLatestBackgroundID // REVERTED
         )
         
-        // The minted NFT is returned to the caller (transaction), which is responsible for depositing it.
         return <-newNFT
     }
     // --- End Public Minting Function ---

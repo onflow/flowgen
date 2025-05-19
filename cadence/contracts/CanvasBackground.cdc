@@ -29,6 +29,7 @@ access(all) contract CanvasBackground: NonFungibleToken {
         canvasHeight: UInt16,
         triggeringPixelID: UInt64?,
         triggeringEventTransactionID: String?,
+        triggeringAiImageID: UInt64?,
         latestBackgroundNftID: UInt64 // Reports the new latest ID
     )
     // No BackgroundNFTUpdated event anymore, as NFTs are immutable snapshots
@@ -43,6 +44,7 @@ access(all) contract CanvasBackground: NonFungibleToken {
         access(all) let canvasHeight: UInt16
         access(all) let triggeringPixelID: UInt64? // Optional: Pixel that triggered this version
         access(all) let triggeringEventTransactionID: String? // Optional: Tx hash of the triggering event
+        access(all) let triggeringAiImageID: UInt64? // Optional: AI Image on the pixel that triggered this version
 
         init(
             imageHash: String,
@@ -51,7 +53,8 @@ access(all) contract CanvasBackground: NonFungibleToken {
             canvasWidth: UInt16,
             canvasHeight: UInt16,
             triggeringPixelID: UInt64?,
-            triggeringEventTransactionID: String?
+            triggeringEventTransactionID: String?,
+            triggeringAiImageID: UInt64?
         ) {
             // id is self.uuid, set by NonFungibleToken standard on NFT creation by contract
             self.id = self.uuid 
@@ -62,6 +65,7 @@ access(all) contract CanvasBackground: NonFungibleToken {
             self.canvasHeight = canvasHeight
             self.triggeringPixelID = triggeringPixelID
             self.triggeringEventTransactionID = triggeringEventTransactionID
+            self.triggeringAiImageID = triggeringAiImageID
         }
 
         // updateData function removed as NFT is now an immutable snapshot
@@ -112,7 +116,8 @@ access(all) contract CanvasBackground: NonFungibleToken {
         access(all) fun mintNewBackground(
             imageHash: String,
             triggeringPixelID: UInt64?,
-            triggeringEventTransactionID: String?
+            triggeringEventTransactionID: String?,
+            triggeringAiImageID: UInt64?
             // canvasWidth and canvasHeight are now contract constants
         ): @NFT {
             // Increment version number for the new NFT
@@ -125,7 +130,8 @@ access(all) contract CanvasBackground: NonFungibleToken {
                 canvasWidth: CanvasBackground.CANVAS_WIDTH,
                 canvasHeight: CanvasBackground.CANVAS_HEIGHT,
                 triggeringPixelID: triggeringPixelID,
-                triggeringEventTransactionID: triggeringEventTransactionID
+                triggeringEventTransactionID: triggeringEventTransactionID,
+                triggeringAiImageID: triggeringAiImageID
             )
 
             // Update the latestBackgroundNftID at the contract level
@@ -140,6 +146,7 @@ access(all) contract CanvasBackground: NonFungibleToken {
                 canvasHeight: newNFT.canvasHeight,
                 triggeringPixelID: newNFT.triggeringPixelID,
                 triggeringEventTransactionID: newNFT.triggeringEventTransactionID,
+                triggeringAiImageID: newNFT.triggeringAiImageID,
                 latestBackgroundNftID: newNFT.id // Emit the new latest ID
             )
             

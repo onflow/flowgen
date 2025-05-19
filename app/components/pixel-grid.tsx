@@ -28,12 +28,9 @@ export default function PixelGrid({
 			<div className="mb-4 flex justify-between items-center">
 				<h2 className="text-xl font-bold">The Canvas</h2>
 				<div className="text-sm bg-blue-100 text-blue-800 p-2 rounded-lg">
-					<span className="font-bold">
-						{(soldPercentage * 100).toFixed(1)}%
-					</span>{" "}
-					sold • Current price:{" "}
-					<span className="font-bold">{currentPrice.toFixed(2)} FLOW</span> per
-					cell
+					<span className="font-bold">{soldPercentage.toFixed(1)}%</span> sold •
+					price from:{" "}
+					<span className="font-bold">{currentPrice.toFixed(2)} FLOW</span>
 				</div>
 			</div>
 

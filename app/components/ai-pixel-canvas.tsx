@@ -201,49 +201,56 @@ export default function AIPixelCanvas() {
 	return (
 		<div className="flex flex-col min-h-screen">
 			<main className="flex-1 py-6">
-				<div className="container mx-auto max-w-7xl relative">
-					{/* Canvas background image */}
-					{canvasUrl && (
-						<div
-							className="absolute inset-0 z-0"
-							style={{
-								backgroundImage: `url(${canvasUrl}?t=${Date.now()})`,
-								backgroundSize: 'contain',
-								backgroundRepeat: 'no-repeat',
-								backgroundPosition: 'center',
-								width: '1024px',
-								height: '1024px',
-								margin: '0 auto'
-							}}
-						/>
-					)}
+				<div className="container mx-auto max-w-7xl">
+					{/* Use flex to position grid and panel side by side */}
+					<div className="flex">
+						{/* Left side - Canvas and Grid */}
+						<div className="relative flex-1">
+							{/* Canvas background image */}
+							{canvasUrl && (
+								<div
+									className="absolute inset-0 z-0"
+									style={{
+										backgroundImage: `url(${canvasUrl}?t=${Date.now()})`,
+										backgroundSize: 'contain',
+										backgroundRepeat: 'no-repeat',
+										backgroundPosition: 'center',
+										width: '1024px',
+										height: '1024px',
+										margin: '0 auto'
+									}}
+								/>
+							)}
 
-					{/* Grid overlay */}
-					<PixelGrid
-						gridSize={gridSize}
-						gridData={fullGridPixels || []}
-						onCellClick={handleCellClick}
-						selectedSpace={selectedSpace}
-						setSelectedSpace={setSelectedSpace}
-						soldPercentage={
-							canvasOverview
-								? (canvasOverview.soldPixels / canvasOverview.totalPixels) * 100
-								: 0
-						}
-						currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}
-						backgroundUrl={canvasUrl}
-					/>
+							{/* Grid overlay */}
+							<PixelGrid
+								gridSize={gridSize}
+								gridData={fullGridPixels || []}
+								onCellClick={handleCellClick}
+								selectedSpace={selectedSpace}
+								setSelectedSpace={setSelectedSpace}
+								soldPercentage={
+									canvasOverview
+										? (canvasOverview.soldPixels / canvasOverview.totalPixels) * 100
+										: 0
+								}
+								currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}
+								backgroundUrl={canvasUrl}
+							/>
+						</div>
 
-					<div className="w-96 bg-gray-50 dark:bg-gray-800 p-6 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
-						<PurchasePanel
-							selectedSpace={selectedSpace}
-							currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}
-							onCancel={() => setSelectedSpace(null)}
-							onPurchaseSuccess={handlePurchaseSuccess}
-							onGenerate={handleGeneratePixel}
-							isUpdatingCanvas={isUpdatingCanvas}
-							canvasUrl={canvasUrl}
-						/>
+						{/* Right side - Purchase Panel */}
+						<div className="w-96 bg-gray-50 dark:bg-gray-800 p-6 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
+							<PurchasePanel
+								selectedSpace={selectedSpace}
+								currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}
+								onCancel={() => setSelectedSpace(null)}
+								onPurchaseSuccess={handlePurchaseSuccess}
+								onGenerate={handleGeneratePixel}
+								isUpdatingCanvas={isUpdatingCanvas}
+								canvasUrl={canvasUrl}
+							/>
+						</div>
 					</div>
 				</div>
 			</main>

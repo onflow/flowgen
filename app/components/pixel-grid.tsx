@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PurchasePanel } from "./purchase-panel";
 
 interface PixelGridProps {
 	gridSize: number;
@@ -137,90 +136,43 @@ export function PixelGrid({
 	};
 
 	return (
-		<div className="mx-auto" style={{ position: 'relative', width: '1024px', height: '1024px' }}>
-			{/* If you want to show the background image here too */}
+		<div className="relative mx-auto" style={{ width: '1024px', height: '1024px' }}>
+			{/* Force reload the image with timestamp to prevent caching */}
 			{backgroundUrl && (
-				<div
+				<img
+					src={`${backgroundUrl}?t=${Date.now()}`}
+					alt="Canvas background"
 					className="absolute inset-0 z-0"
-					style={{
-						width: '100%',
-						height: '100%',
-						backgroundImage: `url(${backgroundUrl}?t=${Date.now()})`,
-						backgroundSize: 'cover',
-						backgroundPosition: 'center'
-					}}
+					style={{ width: '1024px', height: '1024px', objectFit: 'contain' }}
+					onError={(e) => console.error("Failed to load background:", e)}
+					onLoad={() => console.log("Background loaded successfully")}
 				/>
 			)}
 
-			<div className="flex-1 p-4 overflow-auto flex flex-col items-center">
-				<div className="mb-6 flex justify-center items-center w-full max-w-md">
-					<div className="text-sm bg-blue-100 text-blue-800 p-2 rounded-lg">
-						<span className="font-bold">
-							{(localSoldPercentage * 100).toFixed(1)}%
-						</span>{" "}
-						sold • Current price:{" "}
-						<span className="font-bold">{localCurrentPrice.toFixed(2)} FLOW</span> per
-						cell
-					</div>
-				</div>
-
-				<div className="text-sm text-gray-600 text-center mb-6">
-					Click on any available white space to purchase
-				</div>
-
-				<div className="border border-gray-300 inline-block relative">
-					{/* Canvas background */}
-					{canvasUrl && (
-						<div className="absolute inset-0">
-							<img
-								src={`${canvasUrl}?t=${Date.now()}`} // Add cache-busting
-								alt="Canvas"
-								className="w-full h-full"
-							/>
-						</div>
-					)}
-
-					{/* Loading overlay */}
-					{isUpdatingCanvas && (
-						<div className="absolute inset-0 bg-black/20 z-20 flex items-center justify-center">
-							<div className="bg-white p-3 rounded-lg shadow-lg flex items-center space-x-2">
-								<svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-									<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-								</svg>
-								<span className="text-sm">Generating...</span>
-							</div>
-						</div>
-					)}
-
-					{/* Grid overlay */}
+			{/* Grid cells overlay */}
+			<div className="grid relative z-10" style={{
+				display: "grid",
+				gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+				width: "1024px",
+				height: "1024px",
+				border: '1px solid #eaeaea',
+			}}>
+				{localGridData.map((cell) => (
 					<div
-						className="grid relative z-10"
+						key={cell.id}
+						className={`${cell.id === selectedSpace?.id
+							? "border-blue-500 border-2"
+							: "border border-gray-200"
+							} ${!cell.ownerId ? "cursor-pointer hover:bg-blue-100/50" : ""}`}
 						style={{
-							display: "grid",
-							gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
-							width: "1024px",
-							height: "1024px",
+							backgroundColor: cell.ownerId ? "transparent" : "rgba(255,255,255,0.3)",
+							position: "relative",
+							width: "64px",
+							height: "64px"
 						}}
-					>
-						{localGridData.map((cell) => (
-							<div
-								key={cell.id}
-								className={`${cell.id === selectedSpace?.id
-									? "border-blue-500 border-2"
-									: "border border-gray-200"
-									} ${!cell.ownerId ? "cursor-pointer hover:bg-blue-100/50" : ""}`}
-								style={{
-									backgroundColor: cell.ownerId ? "transparent" : "rgba(255,255,255,0.3)",
-									position: "relative",
-									width: "64px",
-									height: "64px"
-								}}
-								onClick={() => handleLocalCellClick(cell)}
-							/>
-						))}
-					</div>
-				</div>
+						onClick={() => handleLocalCellClick(cell)}
+					/>
+				))}
 			</div>
 		</div>
 	);

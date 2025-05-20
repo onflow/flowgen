@@ -19,6 +19,7 @@ import { fcl } from "@/lib/fcl-server-config"; // Import server-configured FCL
 
 /**
  * Server Action: Acquires a pixel space by creating a record in the database.
+ * @deprecated
  */
 export async function acquirePixelSpaceServerAction(data: {
 	x: number;

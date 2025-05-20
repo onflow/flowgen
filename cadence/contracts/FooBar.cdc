@@ -132,9 +132,9 @@ contract FooBar: NonFungibleToken {
   }
 
   init() {
-    self.CollectionStoragePath = /storage/fooBarNFTCollection
-    self.CollectionPublicPath = /public/fooBarNFTCollection
-    self.MinterStoragePath = /storage/fooBarNFTMinter
+    self.CollectionStoragePath = /storage/fooBarNFTCollection001
+    self.CollectionPublicPath = /public/fooBarNFTCollection001
+    self.MinterStoragePath = /storage/fooBarNFTMinter001
     self.account.storage.save(<- create NFTMinter(), to: self.MinterStoragePath)
 
   }

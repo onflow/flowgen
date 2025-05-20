@@ -5,6 +5,7 @@ import "MetadataViews" // Assuming this import correctly brings ViewResolver's m
 import "FungibleToken"
 import "FlowGenAiImage" // Added import
 import "PixelPriceCalculator"
+// import "CanvasBackground" // REVERTED: Removed import
 
 access(all) contract FlowGenPixel: NonFungibleToken {
 
@@ -16,12 +17,19 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     access(all) let BASE_PRICE: UFix64
     access(all) let CENTER_MAX_PRICE_TARGET_MULTIPLIER: UFix64
     access(all) let SCARCITY_PREMIUM_FACTOR: UFix64
-    access(all) let PIXEL_SALE_FEE_RECEIVER_ADDRESS: Address
-
+    access(all) var platformRoyaltyReceiverAddress: Address
+    
+    access(all) resource Admin {
+        access(all) fun updatePlatformRoyaltyAddress(newAddress: Address) {
+            FlowGenPixel.platformRoyaltyReceiverAddress = newAddress
+            log("Platform royalty receiver address updated to: ".concat(newAddress.toString()))
+        }
+    }
     // Paths
     access(all) let CollectionStoragePath: StoragePath
     access(all) let CollectionPublicPath: PublicPath
     access(all) let MinterStoragePath: StoragePath
+    access(all) let AdminStoragePath: StoragePath
 
     // Event definitions (as per NonFungibleToken standard)
     access(all) event ContractInitialized()
@@ -29,7 +37,14 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     access(all) event Deposit(id: UInt64, to: Address?, isMinting: Bool) // isMinting is new in Cadence 1.0 NFT standard
 
     // Custom event for this contract
-    access(all) event PixelMinted(id: UInt64, x: UInt16, y: UInt16, aiImageNftID: UInt64) // Updated event
+    access(all) event PixelMinted(
+        id: UInt64,
+        x: UInt16,
+        y: UInt16,
+        initialAiImageNftID: UInt64
+        // backgroundNftIDAtPurchase: UInt64 // REVERTED: Removed field
+    )
+    access(all) event PixelImageUpdated(pixelId: UInt64, newAiImageNftID: UInt64, x: UInt16, y: UInt16)
 
     // For tracking minted pixels to ensure uniqueness using a String key "x,y"
     access(contract) var registeredPixelKeys: {String: UInt64}
@@ -39,17 +54,22 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         access(all) let id: UInt64
         access(all) let x: UInt16
         access(all) let y: UInt16
-        access(all) let aiImageNftID: UInt64 // Added field to link to the AI Image NFT
+        access(all) var aiImageNftID: UInt64 // This was already var, remains var
+        // access(all) let backgroundNftIDAtPurchase: UInt64 // REVERTED: Removed field
+        // access(all) var backgroundNftIDResultingFromLastUpdate: UInt64? // REVERTED: Removed field
 
         init(
             x: UInt16,
             y: UInt16,
             aiImageNftID: UInt64
+            // backgroundNftIDAtPurchase: UInt64 // REVERTED: Removed parameter
         ) {
             self.id = self.uuid 
             self.x = x
             self.y = y
             self.aiImageNftID = aiImageNftID
+            // self.backgroundNftIDAtPurchase = backgroundNftIDAtPurchase // REVERTED
+            // self.backgroundNftIDResultingFromLastUpdate = nil // REVERTED
             // Royalties are now handled by FlowGenAiImage.NFT
         }
 
@@ -95,6 +115,20 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                     return FlowGenPixel.resolveContractView(resourceType: Type<@FlowGenPixel.NFT>(), viewType: Type<MetadataViews.NFTCollectionDisplay>())
             }
             return nil
+        }
+
+        // New function to update the AI Image NFT ID
+        // This function should only be callable by the owner of the NFT.
+        // Additional checks (e.g., that the caller also owns the new aiImageNftID in FlowGenAiImage contract)
+        // would typically be handled by a calling transaction or orchestrator contract.
+        access(all) fun updateAiImageNftID(newAiImageNftID: UInt64) {
+            // TODO: Consider adding a check here or in a calling contract/transaction
+            // to ensure the owner of this PixelNFT also owns the FlowGenAiImage.NFT with newAiImageNftID.
+            // This is important to prevent someone from setting an image they don't own.
+            // For now, we assume this check is done by the caller.
+
+            self.aiImageNftID = newAiImageNftID
+            emit PixelImageUpdated(pixelId: self.id, newAiImageNftID: newAiImageNftID, x: self.x, y: self.y)
         }
     }
 
@@ -154,6 +188,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
             x: UInt16,
             y: UInt16,
             aiImageNftID: UInt64
+            // backgroundNftIDAtPurchase: UInt64 // REVERTED: Removed parameter
         ): @NFT {
             let pixelKeyStr = x.toString().concat(",").concat(y.toString())
             if FlowGenPixel.registeredPixelKeys[pixelKeyStr] != nil {
@@ -164,13 +199,20 @@ access(all) contract FlowGenPixel: NonFungibleToken {
                 x: x,
                 y: y,
                 aiImageNftID: aiImageNftID
+                // backgroundNftIDAtPurchase: backgroundNftIDAtPurchase // REVERTED
             )
             
             let nftID = newPixelNFT.id
             FlowGenPixel.registeredPixelKeys[pixelKeyStr] = nftID
             FlowGenPixel.totalPixelsSold = FlowGenPixel.totalPixelsSold + 1
             
-            emit PixelMinted(id: nftID, x: x, y: y, aiImageNftID: aiImageNftID)
+            emit PixelMinted(
+                id: nftID,
+                x: x,
+                y: y,
+                initialAiImageNftID: aiImageNftID
+                // backgroundNftIDAtPurchase: backgroundNftIDAtPurchase // REVERTED
+            )
             return <-newPixelNFT
         }
     }
@@ -189,21 +231,22 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         }
 
         // 2. Deposit Payment
-        let feeReceiver = getAccount(FlowGenPixel.PIXEL_SALE_FEE_RECEIVER_ADDRESS)
+        let feeReceiverCap = getAccount(FlowGenPixel.platformRoyaltyReceiverAddress)
             .capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
-            .borrow()
+        let feeReceiver = feeReceiverCap.borrow()
             ?? panic("Could not borrow FungibleToken.Receiver for PIXEL_SALE_FEE_RECEIVER_ADDRESS")
         
         feeReceiver.deposit(from: <-payment)
 
-        // 3. Mint Pixel using internal minter
+        // Mint Pixel using internal minter
         let minter = self.account.storage.borrow<&NFTMinter>(from: self.MinterStoragePath)
             ?? panic("Could not borrow NFTMinter from contract storage")
         
-        let newNFT <- minter.internalMintPixelNFT( // Call the renamed internal function
+        let newNFT <- minter.internalMintPixelNFT(
             x: x,
             y: y,
             aiImageNftID: aiImageNftID
+            // backgroundNftIDAtPurchase: currentLatestBackgroundID // REVERTED
         )
         
         return <-newNFT
@@ -270,7 +313,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         return nil
     }
 
-    init() {
+    init(feeReceiverAddress: Address) {
         self.totalPixelsSold = 0
         self.CANVAS_WIDTH = 16 // Example
         self.CANVAS_HEIGHT = 16 // Example
@@ -280,17 +323,20 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         self.CENTER_MAX_PRICE_TARGET_MULTIPLIER = 3.0 // Price can triple due to scarcity
         self.SCARCITY_PREMIUM_FACTOR = 20.0 // Price can triple due to scarcity
 
-        self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = 0x832e53531bdc8fc5 // TODO: REPLACE with actual primary sale fee receiver for pixels
+        self.platformRoyaltyReceiverAddress = feeReceiverAddress // TODO: REPLACE with actual primary sale fee receiver for pixels
         self.registeredPixelKeys = {}
 
         // Path initializations (consider versioning paths, e.g., "V1")
-        self.CollectionStoragePath = /storage/flowGenPixelCollection
-        self.CollectionPublicPath = /public/flowGenPixelCollection
-        self.MinterStoragePath = /storage/flowGenPixelMinter
-
+        self.CollectionStoragePath = /storage/flowGenPixelCollection001
+        self.CollectionPublicPath = /public/flowGenPixelCollection001
+        self.MinterStoragePath = /storage/flowGenPixelMinter001
+        self.AdminStoragePath = /storage/flowGenPixelAdmin001
         // Save the Minter resource to the deploying account's storage
         self.account.storage.save(<-create NFTMinter(), to: self.MinterStoragePath)
-
+        // Create and save the Admin resource
+        let admin <- create Admin()
+        self.account.storage.save(<-admin, to: self.AdminStoragePath)
+        log("FlowGenPixel contract initialized and Admin resource saved to ".concat(self.AdminStoragePath.toString()))
         emit ContractInitialized()
     }
 

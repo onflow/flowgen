@@ -30,11 +30,9 @@ import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";
 import GET_CANVAS_OVERVIEW_CDC from "@/cadence/scripts/GetCanvasOverview.cdc"; // Re-add this import
 import GET_CANVAS_SECTION_DATA_CDC from "@/cadence/scripts/GetCanvasSectionData.cdc";
 import GET_PIXEL_PRICE_CDC from "@/cadence/scripts/GetPixelPrice.cdc";
+import GET_LATEST_BACKGROUND_INFO_CDC from "@/cadence/scripts/GetLatestBackgroundInfo.cdc"; // Import new script
 import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 import { CuteArtStyle, generateStyledPrompt } from "@/lib/prompt-style";
-// TODO: Replace placeholder addresses with actual configuration or environment variables
-const DEFAULT_FEE_RECEIVER_ADDRESS = "0xf8d6e0586b0a20c7"; // Example: Replace with your actual emulator service/fee account address
-const DEFAULT_ROYALTY_RATE = "0.05000000"; // 5% royalty rate as UFix64
 
 // Hook for initializing user profile
 export function useInitializeUserProfile() {
@@ -597,6 +595,85 @@ export function usePixelPrice({ x, y }: UsePixelPriceProps) {
 
 	return {
 		price: price as number | null,
+		isLoading,
+		error: queryError,
+		refetch,
+	};
+}
+
+// --- New Hook for Current Background Info ---
+
+export interface LatestBackgroundInfo {
+	id: string;
+	imageHash: string;
+	versionNumber: string;
+	name: string | null;
+	description: string | null;
+}
+
+export const getIpfsUrl = (
+	hash: string | null | undefined,
+	gateway?: string
+): string | null => {
+	if (!hash) return null;
+	return `https://${hash}.ipfs.w3s.link`;
+};
+type BackgroundInfo = {
+	data: LatestBackgroundInfo | null;
+	imageUrl: string | null;
+	isLoading: boolean;
+	error: Error | null;
+	refetch: () => void;
+};
+
+export function useCurrentBackgroundInfo(): BackgroundInfo {
+	const adminAddress = process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS;
+
+	const {
+		data: queryData, // This will be unknown, select will type it
+		isLoading,
+		error: queryError,
+		refetch,
+	} = useFlowQuery({
+		// Removed generic type argument
+		cadence: GET_LATEST_BACKGROUND_INFO_CDC,
+		args: adminAddress ? (arg, T) => [arg(adminAddress, T.Address)] : () => [],
+		query: {
+			enabled: !!adminAddress,
+			staleTime: 60000,
+			select: (rawData: unknown): LatestBackgroundInfo | null => {
+				if (!rawData) return null;
+				const result = rawData as any;
+				if (
+					result &&
+					typeof result.id === "string" &&
+					typeof result.imageHash === "string" &&
+					typeof result.versionNumber === "string"
+				) {
+					return {
+						id: result.id,
+						imageHash: result.imageHash,
+						versionNumber: result.versionNumber,
+						name: result.name ?? null,
+						description: result.description ?? null,
+					};
+				} else {
+					console.error(
+						"Invalid data structure from get-latest-background-info.cdc:",
+						rawData
+					);
+					return null;
+				}
+			},
+		},
+	});
+
+	// Explicitly type scriptResult based on the select function's return type
+	const scriptResult = queryData as LatestBackgroundInfo | null;
+
+	return {
+		data: scriptResult,
+		imageUrl: getIpfsUrl(scriptResult?.imageHash),
 		isLoading,
 		error: queryError,
 		refetch,

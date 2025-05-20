@@ -48,13 +48,13 @@ const signWithPrivateKey = async (
 };
 
 export const serverAuthorization = async (account: any = {}) => {
-	const addr = process.env.FLOW_ADMIN_ADDRESS; // Use FLOW_ADMIN_ADDRESS, not NEXT_PUBLIC_ for backend secrets
+	const addr = process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS; // Use NEXT_PUBLIC_FLOW_ADMIN_ADDRESS, not NEXT_PUBLIC_ for backend secrets
 	const privateKey = process.env.FLOW_ADMIN_PRIVATE_KEY;
 	const keyId = Number(process.env.FLOW_ADMIN_KEY_INDEX || "0");
 
 	if (!addr || !privateKey) {
 		console.error(
-			"FLOW_ADMIN_ADDRESS or FLOW_ADMIN_PRIVATE_KEY is not set in environment variables."
+			"NEXT_PUBLIC_FLOW_ADMIN_ADDRESS or FLOW_ADMIN_PRIVATE_KEY is not set in environment variables."
 		);
 		throw new Error(
 			"Server account details (address or private key) not configured for signing."

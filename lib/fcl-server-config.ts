@@ -4,17 +4,21 @@ import { serverAuthorization } from "./server-authz"; // Import server authoriza
 const NEXT_PUBLIC_FLOW_ENDPOINT_URL = process.env.NEXT_PUBLIC_FLOW_ENDPOINT_URL;
 const NEXT_PUBLIC_FLOW_NETWORK =
 	process.env.NEXT_PUBLIC_FLOW_NETWORK || "emulator";
-const FLOW_ADMIN_ADDRESS = process.env.FLOW_ADMIN_ADDRESS;
+const NEXT_PUBLIC_FLOW_ADMIN_ADDRESS =
+	process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS;
 
 if (!NEXT_PUBLIC_FLOW_ENDPOINT_URL) {
 	console.warn(
 		"NEXT_PUBLIC_FLOW_ENDPOINT_URL environment variable is not set. Server-side FCL may not connect to Flow properly."
 	);
 }
-if (!FLOW_ADMIN_ADDRESS && NEXT_PUBLIC_FLOW_NETWORK !== "emulator") {
+if (
+	!NEXT_PUBLIC_FLOW_ADMIN_ADDRESS &&
+	NEXT_PUBLIC_FLOW_NETWORK !== "emulator"
+) {
 	// Emulator might not always need it if tx are simple scripts
 	console.warn(
-		"FLOW_ADMIN_ADDRESS environment variable is not set. Server-side transactions cannot be signed."
+		"NEXT_PUBLIC_FLOW_ADMIN_ADDRESS environment variable is not set. Server-side transactions cannot be signed."
 	);
 }
 
@@ -60,10 +64,10 @@ if (NEXT_PUBLIC_FLOW_NETWORK === "emulator") {
 }
 
 // Server-Side Authorization Configuration
-if (FLOW_ADMIN_ADDRESS && process.env.FLOW_ADMIN_PRIVATE_KEY) {
+if (NEXT_PUBLIC_FLOW_ADMIN_ADDRESS && process.env.FLOW_ADMIN_PRIVATE_KEY) {
 	// Check for private key too
 	// Configure FCL to use serverAuthorization for the admin account
-	// This tells FCL that for any transaction where FLOW_ADMIN_ADDRESS is the proposer/payer/authorizer,
+	// This tells FCL that for any transaction where NEXT_PUBLIC_FLOW_ADMIN_ADDRESS is the proposer/payer/authorizer,
 	// it should use serverAuthorization.
 	// Note: fcl.authz is an alias for fcl.authorizations, some examples use one or the other.
 	// fcl.config().put("fcl.authz", [serverAuthorization]); // This might be too broad or old syntax
@@ -79,21 +83,21 @@ if (FLOW_ADMIN_ADDRESS && process.env.FLOW_ADMIN_PRIVATE_KEY) {
 	fcl.config().put("fcl.proposer", serverAuthorization);
 	fcl.config().put("fcl.payer", serverAuthorization);
 	// And provide it as a general authorization function FCL can use
-	// when it needs to authorize for the FLOW_ADMIN_ADDRESS
+	// when it needs to authorize for the NEXT_PUBLIC_FLOW_ADMIN_ADDRESS
 	fcl.config().put("fcl.authorizations", [serverAuthorization]);
 
 	// Option 2 (More specific to an account, might be cleaner if you have multiple server accounts):
-	// const addr = fcl.sansPrefix(FLOW_ADMIN_ADDRESS);
+	// const addr = fcl.sansPrefix(NEXT_PUBLIC_FLOW_ADMIN_ADDRESS);
 	// fcl.config().put(`fcl.account.${addr}.resolve`, serverAuthorization); // This tells FCL how to resolve the account roles to use this signer
 	// This is more about resolving account details and services, less about directly providing the authz function for fcl.mutate internal logic.
 	// For fcl.mutate, providing a global proposer/payer/authorizations that can satisfy the signing request is key.
 
 	console.log(
-		`Server-side FCL configured to use admin account ${FLOW_ADMIN_ADDRESS} for signing transactions.`
+		`Server-side FCL configured to use admin account ${NEXT_PUBLIC_FLOW_ADMIN_ADDRESS} for signing transactions.`
 	);
 } else {
 	console.warn(
-		"FLOW_ADMIN_ADDRESS or FLOW_ADMIN_PRIVATE_KEY is not set. Server-side transactions will not be signed."
+		"NEXT_PUBLIC_FLOW_ADMIN_ADDRESS or FLOW_ADMIN_PRIVATE_KEY is not set. Server-side transactions will not be signed."
 	);
 }
 

@@ -26,16 +26,7 @@ export default function PixelGrid({
 	};
 
 	return (
-		<div
-			className="flex-1 p-4 overflow-auto flex flex-col items-center"
-			style={{
-				backgroundImage: backgroundImage?.imageUrl
-					? `url(${backgroundImage.imageUrl})`
-					: "none",
-				backgroundSize: "cover",
-				backgroundPosition: "center",
-			}}
-		>
+		<div className="flex-1 p-4 overflow-auto flex flex-col items-center">
 			<div className="mb-6 flex justify-center items-center w-full max-w-md">
 				<div className="text-sm bg-blue-100 text-blue-800 p-2 rounded-lg">
 					<span className="font-bold">{soldPercentage.toFixed(1)}%</span> sold •
@@ -48,7 +39,16 @@ export default function PixelGrid({
 				Click on any available white space to purchase
 			</div>
 
-			<div className="border border-gray-300 inline-block">
+			<div
+				className="border border-gray-300 inline-block"
+				style={{
+					backgroundImage: backgroundImage?.imageUrl
+						? `url(${backgroundImage.imageUrl})`
+						: "none",
+					backgroundSize: "cover",
+					backgroundPosition: "center",
+				}}
+			>
 				<div
 					className="grid"
 					style={{
@@ -67,7 +67,6 @@ export default function PixelGrid({
 									: "border-gray-200"
 							} ${!cell.ownerId ? "cursor-pointer hover:bg-blue-100" : ""}`}
 							style={{
-								backgroundColor: cell.ownerId ? "#f0f0f0" : "white",
 								backgroundImage: cell.ipfsImageCID
 									? `url(https://${cell.ipfsImageCID}.ipfs.w3s.link)`
 									: "none",

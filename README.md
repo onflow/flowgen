@@ -35,6 +35,40 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## web3.storage dev setup
+
+1. Create an account on web3.storage
+2. Create a space
+3. Install the w3 cli
+4. login with the cli and call `w3 space use <did_of_space>`
+5. Follow https://docs.storacha.network/how-to/http-bridge/#generating-auth-headers-with-w3cli
+6. Save your project did, auth header, and secret to .env.local:
+
+```bash
+W3_DELEGATED_DID=
+W3_STORAGE_AUTH_HEADER=
+W3_STORAGE_AUTH_SECRET=
+```
+
+## Open AI
+
+1. Create an OpenAI Key
+
+- You need to have a validated organisation to use gpt-image-1
+- Save your API key to .env
+
+```bash
+OPENAI_API_KEY=
+```
+
+## Database
+
+1. Create a postgres database (use Neon or Supabase)
+
+```bash
+DATABASE_URL=
+```
+
 ## Flow Setup
 
 1. Install the Flow CLI
@@ -73,21 +107,6 @@ flow dev-wallet
 
 ```bash
 pnpm flow:deploy:emulator
-```
-
-## web3.storage dev setup
-
-1. Create an account on web3.storage
-2. Create a space
-3. Install the w3 cli
-4. login with the cli and call `w3 space use <did_of_space>`
-5. Follow https://docs.storacha.network/how-to/http-bridge/#generating-auth-headers-with-w3cli
-6. Save your project did, auth header, and secret to .env.local:
-
-```bash
-W3_DELEGATED_DID=
-W3_STORAGE_AUTH_HEADER=
-W3_STORAGE_AUTH_SECRET=
 ```
 
 6. Seed the background image

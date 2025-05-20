@@ -1,9 +1,6 @@
 "use server";
 
 import { fcl } from "@/lib/fcl-server-config";
-import * as t from "@onflow/types";
-import fs from "fs/promises";
-import path from "path";
 
 import UPDATE_CANVAS_BACKGROUND from "@/cadence/transactions/UpdateCanvasBackground.cdc";
 
@@ -32,7 +29,7 @@ export async function recordNewCanvasBackgroundVersion(
 
 		const transactionId = await fcl.mutate({
 			cadence: cadenceCode,
-			args: (arg: typeof fcl.arg, T: typeof t) => [
+			args: (arg: typeof fcl.arg, T) => [
 				// Ensure your fcl-server-config exports fcl.arg as arg and t
 				arg(params.imageHash, T.String),
 				arg(params.triggeringPixelID || null, T.Optional(T.UInt64)),

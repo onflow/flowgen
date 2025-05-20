@@ -3,26 +3,26 @@
 		"CanvasBackground": {
 			"source": "cadence/contracts/CanvasBackground.cdc",
 			"aliases": {
-				"testing": "0000000000000007"
+				"emulator": "f8d6e0586b0a20c7"
 			}
 		},
 		"FlowGenAiImage": {
 			"source": "cadence/contracts/FlowGenAiImage.cdc",
 			"aliases": {
-				"testing": "0000000000000007"
+				"emulator": "f8d6e0586b0a20c7"
 			}
 		},
 		"FlowGenPixel": {
 			"source": "cadence/contracts/FlowGenPixel.cdc",
 			"aliases": {
-				"testing": "0000000000000008"
+				"emulator": "f8d6e0586b0a20c7"
 			}
 		},
 		"FooBar": "cadence/contracts/FooBar.cdc",
 		"PixelPriceCalculator": {
 			"source": "cadence/contracts/PixelPriceCalculator.cdc",
 			"aliases": {
-				"testing": "0000000000000009"
+				"emulator": "f8d6e0586b0a20c7"
 			}
 		}
 	},

@@ -13,8 +13,8 @@
 		"flow:deploy:testnet": "flow project deploy --network testnet",
 		"flow:deploy:mainnet": "flow project deploy --network mainnet",
 		"flow:seed:background:emulator": "flow transactions send cadence/transactions/canvas/InitializeCanvasAndAdmin.cdc \"bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu\" --network emulator",
-		"flow:seed:background:testnet": "flow transactions send cadence/transactions/canvas/InitializeCanvasBackground.cdc bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu --network testnet",
-		"flow:seed:background:mainnet": "flow transactions send cadence/transactions/InitializeCanvasBackground.cdc bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu --network mainnet"
+		"flow:seed:background:testnet": "flow transactions send cadence/transactions/canvas/InitializeCanvasAndAdmin.cdc bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu --network testnet",
+		"flow:seed:background:mainnet": "flow transactions send cadence/transactions/InitializeCanvasAndAdmin.cdc bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu --network mainnet"
 	},
 	"dependencies": {
 		"@ipld/car": "^5.4.1",

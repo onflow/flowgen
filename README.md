@@ -90,11 +90,11 @@ NEXT_PUBLIC_FLOW_NETWORK='emulator'
 
 FLOW_CONTRACT_ADDRESS=
 NEXT_PUBLIC_FLOW_ADMIN_ADDRESS=
-FLOW_ACCESS_NODE_URL=
+NEXT_PUBLIC_FLOW_ENDPOINT_URL=
 FLOW_ADMIN_HASH_ALGORITHM=
 FLOW_ADMIN_SIGN_ALGORITHM=
-FLOW_NETWORK=
-NEXT_PUBLIC_CANVAS_BACKGROUND_CONTRACT_ADDRESS=
+NEXT_PUBLIC_FLOW_NETWORK=
+NEXT_PUBLIC_FLOW_ADMIN_ADDRESS=
 ```
 
 4. Start the dev wallet
@@ -115,4 +115,12 @@ pnpm flow:deploy:emulator
 
 ```
 pnpm flow:seed:background:emulator
+```
+
+7. Seed the database
+
+- This is important otherwise the cron job will index the entire blockchain. It sets the starting blocks
+
+```
+pnpm db:seed
 ```

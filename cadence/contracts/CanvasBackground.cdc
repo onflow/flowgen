@@ -247,9 +247,9 @@ access(all) contract CanvasBackground: NonFungibleToken {
         self.currentVersionNumber = 0 // Initial version before any mints
         self.latestBackgroundNftID = nil // No background NFT minted yet by init
 
-        self.CollectionStoragePath = /storage/canvasBackgroundHistoricalCollection
-        self.CollectionPublicPath = /public/canvasBackgroundHistoricalCollection
-        self.AdminStoragePath = /storage/canvasBackgroundAdmin
+        self.CollectionStoragePath = /storage/canvasBackgroundHistoricalCollection001
+        self.CollectionPublicPath = /public/canvasBackgroundHistoricalCollection001
+        self.AdminStoragePath = /storage/canvasBackgroundAdmin001
 
         // Create and save the Admin resource
         let adminResource <- create Admin()

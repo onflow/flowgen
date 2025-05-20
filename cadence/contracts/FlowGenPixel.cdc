@@ -17,12 +17,19 @@ access(all) contract FlowGenPixel: NonFungibleToken {
     access(all) let BASE_PRICE: UFix64
     access(all) let CENTER_MAX_PRICE_TARGET_MULTIPLIER: UFix64
     access(all) let SCARCITY_PREMIUM_FACTOR: UFix64
-    access(all) let PIXEL_SALE_FEE_RECEIVER_ADDRESS: Address
-
+    access(all) var platformRoyaltyReceiverAddress: Address
+    
+    access(all) resource Admin {
+        access(all) fun updatePlatformRoyaltyAddress(newAddress: Address) {
+            FlowGenPixel.platformRoyaltyReceiverAddress = newAddress
+            log("Platform royalty receiver address updated to: ".concat(newAddress.toString()))
+        }
+    }
     // Paths
     access(all) let CollectionStoragePath: StoragePath
     access(all) let CollectionPublicPath: PublicPath
     access(all) let MinterStoragePath: StoragePath
+    access(all) let AdminStoragePath: StoragePath
 
     // Event definitions (as per NonFungibleToken standard)
     access(all) event ContractInitialized()
@@ -224,7 +231,7 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         }
 
         // 2. Deposit Payment
-        let feeReceiverCap = getAccount(FlowGenPixel.PIXEL_SALE_FEE_RECEIVER_ADDRESS)
+        let feeReceiverCap = getAccount(FlowGenPixel.platformRoyaltyReceiverAddress)
             .capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
         let feeReceiver = feeReceiverCap.borrow()
             ?? panic("Could not borrow FungibleToken.Receiver for PIXEL_SALE_FEE_RECEIVER_ADDRESS")
@@ -316,17 +323,20 @@ access(all) contract FlowGenPixel: NonFungibleToken {
         self.CENTER_MAX_PRICE_TARGET_MULTIPLIER = 3.0 // Price can triple due to scarcity
         self.SCARCITY_PREMIUM_FACTOR = 20.0 // Price can triple due to scarcity
 
-        self.PIXEL_SALE_FEE_RECEIVER_ADDRESS = feeReceiverAddress // TODO: REPLACE with actual primary sale fee receiver for pixels
+        self.platformRoyaltyReceiverAddress = feeReceiverAddress // TODO: REPLACE with actual primary sale fee receiver for pixels
         self.registeredPixelKeys = {}
 
         // Path initializations (consider versioning paths, e.g., "V1")
-        self.CollectionStoragePath = /storage/flowGenPixelCollection
-        self.CollectionPublicPath = /public/flowGenPixelCollection
-        self.MinterStoragePath = /storage/flowGenPixelMinter
-
+        self.CollectionStoragePath = /storage/flowGenPixelCollection001
+        self.CollectionPublicPath = /public/flowGenPixelCollection001
+        self.MinterStoragePath = /storage/flowGenPixelMinter001
+        self.AdminStoragePath = /storage/flowGenPixelAdmin001
         // Save the Minter resource to the deploying account's storage
         self.account.storage.save(<-create NFTMinter(), to: self.MinterStoragePath)
-
+        // Create and save the Admin resource
+        let admin <- create Admin()
+        self.account.storage.save(<-admin, to: self.AdminStoragePath)
+        log("FlowGenPixel contract initialized and Admin resource saved to ".concat(self.AdminStoragePath.toString()))
         emit ContractInitialized()
     }
 

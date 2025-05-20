@@ -5,13 +5,14 @@ import { eventPollingStatus } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 // --- Configuration ---
-const FLOW_NETWORK = process.env.NEXT_PUBLIC_FLOW_NETWORK || "emulator"; // 'emulator', 'testnet', 'mainnet'
+const NEXT_PUBLIC_FLOW_NETWORK =
+	process.env.NEXT_PUBLIC_FLOW_NETWORK || "emulator"; // 'emulator', 'testnet', 'mainnet'
 
 const CONTRACT_ADDRESSES = {
 	emulator: "0xf8d6e0586b0a20c7",
-	testnet: "0x832e53531bdc8fc5",
+	testnet: process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS,
 	mainnet:
-		process.env.NEXT_PUBLIC_FLOWGEN_PIXEL_CONTRACT_ADDRESS ||
+		process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS ||
 		"YOUR_MAINNET_FLOWGEN_PIXEL_CONTRACT_ADDRESS_PLACEHOLDER",
 };
 
@@ -23,13 +24,17 @@ const STARTING_BLOCKS = {
 
 const getContractAddress = (): string => {
 	return (
-		CONTRACT_ADDRESSES[FLOW_NETWORK as keyof typeof CONTRACT_ADDRESSES] ||
-		CONTRACT_ADDRESSES.emulator
+		CONTRACT_ADDRESSES[
+			NEXT_PUBLIC_FLOW_NETWORK as keyof typeof CONTRACT_ADDRESSES
+		] || CONTRACT_ADDRESSES.emulator
 	);
 };
 
 const getStartingBlock = (): number => {
-	return STARTING_BLOCKS[FLOW_NETWORK as keyof typeof STARTING_BLOCKS] || 0;
+	return (
+		STARTING_BLOCKS[NEXT_PUBLIC_FLOW_NETWORK as keyof typeof STARTING_BLOCKS] ||
+		0
+	);
 };
 
 const PIXEL_EVENT_TEMPLATES = [
@@ -55,7 +60,7 @@ async function getEventPollingStatus(
 	}
 
 	console.warn(
-		`Event ${eventName} not found in event_polling_status. Using default starting block for ${FLOW_NETWORK}. Consider seeding the table.`
+		`Event ${eventName} not found in event_polling_status. Using default starting block for ${NEXT_PUBLIC_FLOW_NETWORK}. Consider seeding the table.`
 	);
 	return { lastPolledBlock: getStartingBlock(), seeded: false };
 }
@@ -95,12 +100,12 @@ export async function GET(request: Request) {
 
 	const contractAddress = getContractAddress();
 	if (
-		FLOW_NETWORK === "mainnet" &&
+		NEXT_PUBLIC_FLOW_NETWORK === "mainnet" &&
 		contractAddress ===
 			"YOUR_MAINNET_FLOWGEN_PIXEL_CONTRACT_ADDRESS_PLACEHOLDER"
 	) {
 		console.error(
-			"Mainnet contract address for FlowGenPixel is not configured (NEXT_PUBLIC_FLOWGEN_PIXEL_CONTRACT_ADDRESS)."
+			"Mainnet contract address for FlowGenPixel is not configured (NEXT_PUBLIC_FLOW_ADMIN_ADDRESS)."
 		);
 		return NextResponse.json(
 			{ error: "Mainnet FlowGenPixel contract address not configured" },
@@ -109,7 +114,7 @@ export async function GET(request: Request) {
 	}
 
 	console.log(
-		`Starting cron job for FlowGenPixel events on ${FLOW_NETWORK} network, contract ${contractAddress}.`
+		`Starting cron job for FlowGenPixel events on ${NEXT_PUBLIC_FLOW_NETWORK} network, contract ${contractAddress}.`
 	);
 	const results = [];
 

@@ -16,13 +16,12 @@ const CONTRACT_ADDRESSES: Record<
 		// Add other contract aliases here if needed
 	},
 	testnet: {
-		CanvasBackground: "0x832e53531bdc8fc5",
-		FlowGenPixel: "0x832e53531bdc8fc5", // Assuming same for testnet, adjust if different
+		CanvasBackground: process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS,
+		FlowGenPixel: process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS, // Assuming same for testnet, adjust if different
 	},
 	mainnet: {
-		CanvasBackground:
-			process.env.NEXT_PUBLIC_CANVAS_BACKGROUND_CONTRACT_ADDRESS,
-		FlowGenPixel: process.env.NEXT_PUBLIC_FLOWGEN_PIXEL_CONTRACT_ADDRESS,
+		CanvasBackground: process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS,
+		FlowGenPixel: process.env.NEXT_PUBLIC_FLOW_ADMIN_ADDRESS,
 	},
 };
 
@@ -52,12 +51,12 @@ async function seed() {
 		if (network === "mainnet") {
 			if (!CONTRACT_ADDRESSES.mainnet.CanvasBackground) {
 				console.warn(
-					"Skipping mainnet CanvasBackground: NEXT_PUBLIC_CANVAS_BACKGROUND_CONTRACT_ADDRESS not set."
+					"Skipping mainnet CanvasBackground: NEXT_PUBLIC_FLOW_ADMIN_ADDRESS not set."
 				);
 			}
 			if (!CONTRACT_ADDRESSES.mainnet.FlowGenPixel) {
 				console.warn(
-					"Skipping mainnet FlowGenPixel: NEXT_PUBLIC_FLOWGEN_PIXEL_CONTRACT_ADDRESS not set."
+					"Skipping mainnet FlowGenPixel: NEXT_PUBLIC_FLOW_ADMIN_ADDRESS not set."
 				);
 			}
 		}

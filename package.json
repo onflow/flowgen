@@ -9,12 +9,12 @@
 		"lint": "next lint",
 		"migrate": "pnpm drizzle-kit migrate",
 		"db:seed": "tsx db/seed.ts",
-		"flow:deploy:emulator": "flow project deploy --network emulator",
-		"flow:deploy:testnet": "flow project deploy --network testnet",
-		"flow:deploy:mainnet": "flow project deploy --network mainnet",
+		"flow:deploy:emulator": "flow project deploy --network emulator --update",
+		"flow:deploy:testnet": "flow project deploy --network testnet --update",
+		"flow:deploy:mainnet": "flow project deploy --network mainnet --update",
 		"flow:seed:background:emulator": "flow transactions send cadence/transactions/canvas/InitializeCanvasAndAdmin.cdc \"bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu\" --network emulator",
-		"flow:seed:background:testnet": "flow transactions send cadence/transactions/canvas/InitializeCanvasAndAdmin.cdc bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu --network testnet",
-		"flow:seed:background:mainnet": "flow transactions send cadence/transactions/InitializeCanvasAndAdmin.cdc bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu --network mainnet"
+		"flow:seed:background:testnet": "flow transactions send cadence/transactions/canvas/InitializeCanvasAndAdmin.cdc bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu --network testnet --signer admin-testnet",
+		"flow:seed:background:mainnet": "flow transactions send cadence/transactions/InitializeCanvasAndAdmin.cdc bafybeidfkrpbfqrbad7mlpr7h5rtqbs4t6g366ez7lroeln72ucfz4x2eu --network mainnet --signer admin-mainnet"
 	},
 	"dependencies": {
 		"@ipld/car": "^5.4.1",

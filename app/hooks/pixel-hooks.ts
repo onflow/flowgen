@@ -33,10 +33,6 @@ import GET_PIXEL_PRICE_CDC from "@/cadence/scripts/GetPixelPrice.cdc";
 import GET_LATEST_BACKGROUND_INFO_CDC from "@/cadence/scripts/GetLatestBackgroundInfo.cdc"; // Import new script
 import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 import { CuteArtStyle, generateStyledPrompt } from "@/lib/prompt-style";
-import * as t from "@onflow/types"; // Ensure t is imported
-// TODO: Replace placeholder addresses with actual configuration or environment variables
-const DEFAULT_FEE_RECEIVER_ADDRESS = "0xf8d6e0586b0a20c7"; // Example: Replace with your actual emulator service/fee account address
-const DEFAULT_ROYALTY_RATE = "0.05000000"; // 5% royalty rate as UFix64
 
 // Hook for initializing user profile
 export function useInitializeUserProfile() {

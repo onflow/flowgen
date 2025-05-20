@@ -87,7 +87,7 @@
 				"location": "keys/admin.pkey"
 			}
 		},
-		"admin-testnet": {
+		"admin-old-testnet": {
 			"address": "832e53531bdc8fc5",
 			"key": {
 				"type": "file",
@@ -96,6 +96,16 @@
 				"location": "keys/admin-flowgen.pkey"
 			}
 		},
+		"admin-testnet": {
+			"address": "5387bfae1bb240b0",
+			"key": {
+				"type": "file",
+				"signatureAlgorithm": "ECDSA_secp256k1",
+				"hashAlgorithm": "SHA3_256",
+				"location": "keys/admin-flowgen.pkey"
+			}
+		},
+
 		"emulator-account": {
 			"address": "f8d6e0586b0a20c7",
 			"key": {
@@ -126,7 +136,10 @@
 					"name": "FlowGenPixel",
 					"args": [{ "type": "Address", "value": "0xf8d6e0586b0a20c7" }]
 				},
-				"FlowGenAiImage",
+				{
+					"name": "FlowGenAiImage",
+					"args": [{ "type": "Address", "value": "0xf8d6e0586b0a20c7" }]
+				},
 				"PixelPriceCalculator",
 				{
 					"name": "CanvasBackground",
@@ -141,9 +154,12 @@
 			"admin-testnet": [
 				{
 					"name": "FlowGenPixel",
-					"args": [{ "type": "Address", "value": "0x832e53531bdc8fc5" }]
+					"args": [{ "type": "Address", "value": "0x5387bfae1bb240b0" }]
 				},
-				"FlowGenAiImage",
+				{
+					"name": "FlowGenAiImage",
+					"args": [{ "type": "Address", "value": "0x5387bfae1bb240b0" }]
+				},
 				"PixelPriceCalculator",
 				{
 					"name": "CanvasBackground",

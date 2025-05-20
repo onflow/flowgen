@@ -1,16 +1,17 @@
 import * as fcl from "@onflow/fcl";
 import { serverAuthorization } from "./server-authz"; // Import server authorization
 
-const FLOW_ACCESS_NODE_URL = process.env.FLOW_ACCESS_NODE_URL;
-const FLOW_NETWORK = process.env.NEXT_PUBLIC_FLOW_NETWORK || "emulator";
+const NEXT_PUBLIC_FLOW_ENDPOINT_URL = process.env.NEXT_PUBLIC_FLOW_ENDPOINT_URL;
+const NEXT_PUBLIC_FLOW_NETWORK =
+	process.env.NEXT_PUBLIC_FLOW_NETWORK || "emulator";
 const FLOW_ADMIN_ADDRESS = process.env.FLOW_ADMIN_ADDRESS;
 
-if (!FLOW_ACCESS_NODE_URL) {
+if (!NEXT_PUBLIC_FLOW_ENDPOINT_URL) {
 	console.warn(
-		"FLOW_ACCESS_NODE_URL environment variable is not set. Server-side FCL may not connect to Flow properly."
+		"NEXT_PUBLIC_FLOW_ENDPOINT_URL environment variable is not set. Server-side FCL may not connect to Flow properly."
 	);
 }
-if (!FLOW_ADMIN_ADDRESS && FLOW_NETWORK !== "emulator") {
+if (!FLOW_ADMIN_ADDRESS && NEXT_PUBLIC_FLOW_NETWORK !== "emulator") {
 	// Emulator might not always need it if tx are simple scripts
 	console.warn(
 		"FLOW_ADMIN_ADDRESS environment variable is not set. Server-side transactions cannot be signed."
@@ -22,17 +23,17 @@ fcl.config({
 	"app.detail.title": "FlowGen Backend", // You can customize this
 	"app.detail.icon": "https://flowgen.art/favicon.ico", // Replace with your app's icon
 	"accessNode.api":
-		FLOW_ACCESS_NODE_URL ||
-		(FLOW_NETWORK === "emulator"
+		NEXT_PUBLIC_FLOW_ENDPOINT_URL ||
+		(NEXT_PUBLIC_FLOW_NETWORK === "emulator"
 			? "http://localhost:8888"
-			: FLOW_NETWORK === "testnet"
+			: NEXT_PUBLIC_FLOW_NETWORK === "testnet"
 			? "https://rest-testnet.onflow.org"
 			: "https://rest-mainnet.onflow.org"),
-	"flow.network": FLOW_NETWORK,
+	"flow.network": NEXT_PUBLIC_FLOW_NETWORK,
 });
 
 // Discovery settings based on network (primarily for client-side, but good to have consistent config)
-if (FLOW_NETWORK === "emulator") {
+if (NEXT_PUBLIC_FLOW_NETWORK === "emulator") {
 	fcl
 		.config()
 		.put(
@@ -40,7 +41,7 @@ if (FLOW_NETWORK === "emulator") {
 			process.env.NEXT_PUBLIC_FLOW_DISCOVERY_WALLET ||
 				"http://localhost:8701/fcl/authn"
 		);
-} else if (FLOW_NETWORK === "testnet") {
+} else if (NEXT_PUBLIC_FLOW_NETWORK === "testnet") {
 	fcl
 		.config()
 		.put(
@@ -48,7 +49,7 @@ if (FLOW_NETWORK === "emulator") {
 			process.env.NEXT_PUBLIC_FLOW_DISCOVERY_WALLET ||
 				"https://fcl-discovery.onflow.org/testnet/authn"
 		);
-} else if (FLOW_NETWORK === "mainnet") {
+} else if (NEXT_PUBLIC_FLOW_NETWORK === "mainnet") {
 	fcl
 		.config()
 		.put(

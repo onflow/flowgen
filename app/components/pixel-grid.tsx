@@ -19,7 +19,7 @@ export default function PixelGrid({
 	currentPrice,
 	selectedSpace,
 }: PixelGridProps) {
-	//	const backgroundImage = useCurrentBackgroundInfo();
+	const backgroundImage = useCurrentBackgroundInfo();
 	const handleCellClick = (cell: any) => {
 		console.log("handleCellClick", cell);
 		onCellClick(cell);
@@ -29,9 +29,9 @@ export default function PixelGrid({
 		<div
 			className="flex-1 p-4 overflow-auto flex flex-col items-center"
 			style={{
-				// backgroundImage: backgroundImage?.imageUrl
-				// 	? `url(${backgroundImage.imageUrl})`
-				// 	: "none",
+				backgroundImage: backgroundImage?.imageUrl
+					? `url(${backgroundImage.imageUrl})`
+					: "none",
 				backgroundSize: "cover",
 				backgroundPosition: "center",
 			}}

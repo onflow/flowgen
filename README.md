@@ -37,32 +37,42 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Flow Setup
 
-- Install the Flow CLI
-- Start the emulator
-- Generate a private key for:
+1. Install the Flow CLI
+2. Generate a private key for: emulator-account - keys/emulator-account.pkey
 
-1. emulator-account - keys/emulator-account.pkey
-2. admin (owns the contract) - keys/admin.pkey
-3. user one (user of the service) - keys/user-one.pkey
-4. receiver (who gets commission) - keys/receiver.pkey
+- For testnet Generate a private key for admin-testnet
+
+3. Start the emulator
 
 ```bash
-flow keys generate -o 'json' > keys/admin.json
-flow keys generate -o 'json' > keys/user-one.json
-flow keys generate -o 'json' > keys/receiver.json
+flow emulator start
 ```
 
-Once you've done that, then you can generate the accounts
+4. Set these environment variables for emulator (or for testnet use those)
 
 ```bash
-chmod +x create_flow_accounts.sh
-./create_flow_accounts.sh
+NEXT_PUBLIC_FLOW_ENDPOINT_URL='http://localhost:8888'
+NEXT_PUBLIC_FLOW_NETWORK='emulator'
+
+FLOW_CONTRACT_ADDRESS=
+NEXT_PUBLIC_FLOW_ADMIN_ADDRESS=
+FLOW_ACCESS_NODE_URL=
+FLOW_ADMIN_HASH_ALGORITHM=
+FLOW_ADMIN_SIGN_ALGORITHM=
+FLOW_NETWORK=
+NEXT_PUBLIC_CANVAS_BACKGROUND_CONTRACT_ADDRESS=
 ```
 
-Run dev wallet
+4. Start the dev wallet
 
 ```bash
 flow dev-wallet
+```
+
+5. Deploy the contracts
+
+```bash
+pnpm flow:deploy:emulator
 ```
 
 ## web3.storage dev setup
@@ -71,6 +81,19 @@ flow dev-wallet
 2. Create a space
 3. Install the w3 cli
 4. login with the cli and call `w3 space use <did_of_space>`
-5. Follow https://docs.storacha.network/how-to/upload/#bring-your-own-delegations
-6. Save that proof as `W3_DELEGATED_PROOF` in your `.env.development.local`
-7. Save the key as
+5. Follow https://docs.storacha.network/how-to/http-bridge/#generating-auth-headers-with-w3cli
+6. Save your project did, auth header, and secret to .env.local:
+
+```bash
+W3_DELEGATED_DID=
+W3_STORAGE_AUTH_HEADER=
+W3_STORAGE_AUTH_SECRET=
+```
+
+6. Seed the background image
+
+- If you want to replace the background image, you may want to run the transaction directly. Look at package.json to get the command
+
+```
+pnpm flow:seed:background:emulator
+```

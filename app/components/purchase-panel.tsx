@@ -4,6 +4,8 @@ import { useState } from "react";
 import AIImageGenerator from "./ai-image-generator";
 import { CUTE_ART_STYLES, CUTE_ART_STYLE_LABELS } from "@/lib/prompt-style";
 import { CuteArtStyle } from "@/lib/prompt-style";
+import { useAcquirePixelSpace } from "@/app/hooks/pixel-hooks";
+
 interface GenerateResult {
 	canvasUrl?: string;
 	pixelUrl?: string;
@@ -19,6 +21,7 @@ interface PurchasePanelProps {
 	onGenerate?: (prompt: string, style: string) => Promise<GenerateResult | undefined>;
 	isUpdatingCanvas?: boolean;
 	canvasUrl?: string | null;
+	userId?: string;
 }
 
 export function PurchasePanel({
@@ -29,13 +32,28 @@ export function PurchasePanel({
 	onPurchaseSuccess,
 	onGenerate,
 	isUpdatingCanvas = false,
-	canvasUrl = null
+	canvasUrl = null,
+	userId
 }: PurchasePanelProps) {
 	const [prompt, setPrompt] = useState("");
 	const [style, setStyle] = useState("pixel-art");
 	const [imageGenerated, setImageGenerated] = useState(false);
 	const [showPreview, setShowPreview] = useState(false);
 	const [pixelUrl, setPixelUrl] = useState<string | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const {
+		acquire,
+		isLoading: isAcquireLoading,
+		error: acquireError
+	} = useAcquirePixelSpace({
+		onSuccess: (data) => {
+			if (onPurchaseSuccess) onPurchaseSuccess();
+		},
+		onError: (error) => {
+			console.error("Error acquiring pixel:", error);
+		}
+	});
 
 	const handlePromptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setPrompt(e.target.value);
@@ -49,12 +67,12 @@ export function PurchasePanel({
 
 	const handleGenerate = async () => {
 		if (!prompt || !onGenerate) return;
-		setShowPreview(false); // Reset preview while generating
-		setPixelUrl(null); // Reset pixel URL
+		setShowPreview(false);
+		setPixelUrl(null);
 
 		try {
 			const result = await onGenerate(prompt, style);
-			// Check if the result includes a pixelUrl
+
 			if (result && result.pixelUrl) {
 				setPixelUrl(result.pixelUrl);
 			}
@@ -66,8 +84,32 @@ export function PurchasePanel({
 	};
 
 	const handlePurchase = async () => {
-		if (!imageGenerated || !onPurchaseSuccess) return;
-		await onPurchaseSuccess();
+		if (!selectedSpace || !pixelUrl) return;
+		setIsSubmitting(true);
+
+		try {
+			const { x, y } = selectedSpace;
+
+			await acquire({
+				x,
+				y,
+				prompt: prompt || "",
+				style: style as CuteArtStyle,
+				imageURL: `${window.location.origin}${pixelUrl}`,
+				flowPaymentAmount: pixelPrice?.toString() || "10.0",
+				userId: userId || "",
+				imageMediaType: "image/png",
+				backendPaymentAmount: 0,
+			});
+
+			if (onPurchaseSuccess) {
+				onPurchaseSuccess();
+			}
+		} catch (error) {
+			console.error("Error purchasing pixel:", error);
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	return (

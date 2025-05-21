@@ -4,6 +4,7 @@ import path from "path";
 import sharp from "sharp";
 import OpenAI from "openai";
 import axios from "axios";
+import { stylePromptTemplates } from "@/lib/prompt-style";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

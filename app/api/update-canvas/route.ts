@@ -84,8 +84,7 @@ export async function POST(req: NextRequest) {
         // Start with a simpler, less detailed landscape background
         const response = await openai.images.generate({
           model: "dall-e-3",
-          prompt:
-            "Create a highly detailed realistic pixel art landscape of a plain with few trees and no other objects. Use a rich color palette with good definition in 16-bit pixel art style. The image should be beautiful and immersive with clear details, but still function well as a background for other elements. Ensure the landscape has excellent definition while maintaining the distinct pixel art aesthetic.",
+          prompt: `Create a highly detailed realistic landscape ${style} art style image of a plain with few trees and no other objects. Use a rich color palette with good definition. The image should be beautiful and immersive with clear details, but still function well as a background for other elements. Ensure the landscape has excellent definition while maintaining the distinct pixel art aesthetic.`,
           n: 1,
           size: "1024x1024",
         });
@@ -147,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     const response = await openai.images.generate({
       model: "dall-e-3",
-      prompt: `Create a pixel art style ${prompt} with transparent background. ONLY the ${prompt} itself should be visible - no UI elements, no color palettes, no thumbnails, no multiple versions. Just a single isolated ${prompt} centered in the image.`,
+      prompt: `Create a ${style} art style ${prompt} with transparent background. ONLY the ${prompt} itself should be visible - no UI elements, no color palettes, no thumbnails, no multiple versions. Just a single isolated ${prompt} centered in the image.`,
       n: 1,
       size: "1024x1024",
     });

@@ -47,3 +47,14 @@ export const pixels = pgTable(
 // If you plan to have other tables, you can define them here as well.
 // For example:
 // export const users = pgTable('users', { ... });
+
+export const eventPollingStatus = pgTable("event_polling_status", {
+	id: serial("id").primaryKey(),
+	eventName: text("event_name").unique().notNull(),
+	lastPolledBlock: integer("last_polled_block").notNull().default(0),
+	createdAt: timestamp("created_at").notNull().defaultNow(),
+	updatedAt: timestamp("updated_at")
+		.notNull()
+		.defaultNow()
+		.$onUpdate(() => new Date()),
+});

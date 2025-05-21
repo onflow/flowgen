@@ -1,9 +1,63 @@
 {
-  "id": "09571c1d-ee9c-4030-85fa-27a5353ebf16",
+  "id": "687d484a-5b0f-4693-b433-53db720719fa",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.event_polling_status": {
+      "name": "event_polling_status",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "event_name": {
+          "name": "event_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_polled_block": {
+          "name": "last_polled_block",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "event_polling_status_event_name_unique": {
+          "name": "event_polling_status_event_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "event_name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.pixels": {
       "name": "pixels",
       "schema": "",
@@ -45,8 +99,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "image_url": {
-          "name": "image_url",
+        "ipfs_image_cid": {
+          "name": "ipfs_image_cid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_media_type": {
+          "name": "image_media_type",
           "type": "text",
           "primaryKey": false,
           "notNull": false

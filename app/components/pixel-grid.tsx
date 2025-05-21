@@ -1,6 +1,7 @@
-"use client";
+import React, { useState, useEffect } from "react";
+import { PixelData } from "@/lib/pixel-types";
+import { useCurrentBackgroundInfo } from "../hooks/pixel-hooks";
 
-import { useState, useEffect } from "react";
 
 interface PixelGridProps {
 	gridSize: number;
@@ -136,43 +137,55 @@ export function PixelGrid({
 	};
 
 	return (
-		<div className="relative mx-auto" style={{ width: '1024px', height: '1024px' }}>
-			{/* Force reload the image with timestamp to prevent caching */}
-			{backgroundUrl && (
-				<img
-					src={`${backgroundUrl}?t=${Date.now()}`}
-					alt="Canvas background"
-					className="absolute inset-0 z-0"
-					style={{ width: '1024px', height: '1024px', objectFit: 'contain' }}
-					onError={(e) => console.error("Failed to load background:", e)}
-					onLoad={() => console.log("Background loaded successfully")}
-				/>
-			)}
+		<div className="flex-1 p-4 overflow-auto flex flex-col items-center">
+			<div className="mb-6 flex justify-center items-center w-full max-w-md">
+				<div className="text-sm bg-blue-100 text-blue-800 p-2 rounded-lg">
+					<span className="font-bold">{soldPercentage?.toFixed(1)}%</span> sold •
+					price from:{" "}
+					<span className="font-bold">{currentPrice?.toFixed(2)} FLOW</span>
+				</div>
+			</div>
 
-			{/* Grid cells overlay */}
-			<div className="grid relative z-10" style={{
-				display: "grid",
-				gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
-				width: "1024px",
-				height: "1024px",
-				border: '1px solid #eaeaea',
-			}}>
-				{localGridData.map((cell) => (
-					<div
-						key={cell.id}
-						className={`${cell.id === selectedSpace?.id
-							? "border-blue-500 border-2"
-							: "border border-gray-200"
-							} ${!cell.ownerId ? "cursor-pointer hover:bg-blue-100/50" : ""}`}
-						style={{
-							backgroundColor: cell.ownerId ? "transparent" : "rgba(255,255,255,0.3)",
-							position: "relative",
-							width: "64px",
-							height: "64px"
-						}}
-						onClick={() => handleLocalCellClick(cell)}
-					/>
-				))}
+			<div className="text-sm text-gray-600 text-center mb-6">
+				Click on any available white space to purchase
+			</div>
+
+			<div
+				className="border border-gray-300 inline-block"
+				style={{
+					backgroundImage: backgroundUrl
+						? `url(${backgroundUrl})`
+						: "none",
+					backgroundSize: "cover",
+					backgroundPosition: "center",
+				}}
+			>
+				<div
+					className="grid"
+					style={{
+						display: "grid",
+						gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+						width: "1024px",
+						height: "1024px",
+					}}
+				>
+					{gridData.map((cell) => (
+						<div
+							key={cell.id}
+							className={`border ${cell.id === selectedSpace?.id
+								? "border-blue-500 border-2"
+								: "border-gray-200"
+								} ${!cell.ownerId ? "cursor-pointer hover:bg-blue-100" : ""}`}
+							style={{
+								backgroundImage: cell.ipfsImageCID
+									? `url(https://${cell.ipfsImageCID}.ipfs.w3s.link)`
+									: "none",
+								backgroundSize: "cover",
+							}}
+							onClick={() => handleLocalCellClick(cell)}
+						/>
+					))}
+				</div>
 			</div>
 		</div>
 	);

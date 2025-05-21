@@ -207,20 +207,7 @@ export default function AIPixelCanvas() {
 						{/* Left side - Canvas and Grid */}
 						<div className="relative flex-1">
 							{/* Canvas background image */}
-							{canvasUrl && (
-								<div
-									className="absolute inset-0 z-0"
-									style={{
-										backgroundImage: `url(${canvasUrl}?t=${Date.now()})`,
-										backgroundSize: 'contain',
-										backgroundRepeat: 'no-repeat',
-										backgroundPosition: 'center',
-										width: '1024px',
-										height: '1024px',
-										margin: '0 auto'
-									}}
-								/>
-							)}
+
 
 							{/* Grid overlay */}
 							<PixelGrid

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-
+import AIImageGenerator from "./ai-image-generator";
+import { CUTE_ART_STYLES, CUTE_ART_STYLE_LABELS } from "@/lib/prompt-style";
+import { CuteArtStyle } from "@/lib/prompt-style";
 interface GenerateResult {
 	canvasUrl?: string;
 	pixelUrl?: string;
@@ -93,23 +95,33 @@ export function PurchasePanel({
 				<label htmlFor="style" className="block text-sm font-medium text-gray-700 mb-1">
 					Style
 				</label>
-				<select
-					id="style"
-					className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-					value={style}
-					onChange={handleStyleChange}
-				>
-					<option value="pixel-art">Pixel Art</option>
-					<option value="chibi">Chibi</option>
-					<option value="kawaii-pastel">Kawaii Pastel</option>
-					<option value="soft-blob">Soft Blob</option>
-					<option value="sanrio">Sanrio</option>
-					<option value="vinyl-toy">Vinyl Toy</option>
-					<option value="storybook">Storybook</option>
-					<option value="flat-design">Flat Design</option>
-					<option value="y2k-bubble">Y2K Bubble</option>
-					<option value="crochet-amigurumi">Crochet Amigurumi</option>
-				</select>
+				<textarea
+					className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 h-24 bg-white dark:bg-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500"
+					placeholder="Describe the image you want to generate..."
+					value={prompt}
+					onChange={(e) => setPrompt(e.target.value)}
+				/>
+				<div className="mb-6">
+					<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						Style Preset
+					</label>
+					<select
+						className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700 dark:text-gray-200"
+						value={style}
+						onChange={(e) => setStyle(e.target.value as CuteArtStyle)}
+					>
+						{CUTE_ART_STYLES.map((artStyle: CuteArtStyle) => (
+							<option key={artStyle} value={artStyle}>
+								{CUTE_ART_STYLE_LABELS[artStyle]}
+							</option>
+						))}
+					</select>
+				</div>
+				{/* <AIImageGenerator
+					prompt={prompt}
+					style={style}
+					onImageGenerated={(url) => setImageURL(url)}
+				/> */}
 			</div>
 
 			<div className="flex flex-col space-y-2 mb-4">

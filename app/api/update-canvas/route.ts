@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
         const response = await openai.images.generate({
           model: "dall-e-3",
           prompt:
-            "Create a highly detailed realistic pixel art landscape with majestic mountains, lush forests, and a winding river. Use a rich color palette with good definition in 16-bit pixel art style. The image should be beautiful and immersive with clear details, but still function well as a background for other elements. Ensure the landscape has excellent definition while maintaining the distinct pixel art aesthetic.",
+            "Create a highly detailed realistic pixel art landscape of a plain with few trees and no other objects. Use a rich color palette with good definition in 16-bit pixel art style. The image should be beautiful and immersive with clear details, but still function well as a background for other elements. Ensure the landscape has excellent definition while maintaining the distinct pixel art aesthetic.",
           n: 1,
           size: "1024x1024",
         });

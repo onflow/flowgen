@@ -12,13 +12,19 @@ contract FlowGenAiImage: NonFungibleToken {
   /// Path where the minter should be stored
   /// The standard paths for the collection are stored in the collection resource type
   access(all) let MinterStoragePath: StoragePath
+  access(all) let AdminStoragePath: StoragePath
 
   // --- Contract-Level Royalty Configuration ---
   access(all) let platformRoyaltyRate: UFix64
-  access(all) let platformRoyaltyReceiverAddress: Address
+  access(all) var platformRoyaltyReceiverAddress: Address
   access(all) let creatorRoyaltyRate: UFix64
   // --- End Royalty Configuration ---
-
+  access(all) resource Admin {
+    access(all) fun updatePlatformRoyaltyAddress(newAddress: Address) {
+      FlowGenAiImage.platformRoyaltyReceiverAddress = newAddress
+      log("Platform royalty receiver address updated to: ".concat(newAddress.toString()))
+    }
+  }
   access(all) resource NFT: NonFungibleToken.NFT {
     access(all) let id: UInt64
     access(all) let name: String
@@ -193,18 +199,24 @@ contract FlowGenAiImage: NonFungibleToken {
     }
   }
 
-  init() {
+  init(feeReceiverAddress: Address) {
     // Path initializations first
-    self.CollectionStoragePath = /storage/flowGenAiImageNFTCollection
-    self.CollectionPublicPath = /public/flowGenAiImageNFTCollection
-    self.MinterStoragePath = /storage/flowGenAiImageNFTMinter
+    self.CollectionStoragePath = /storage/flowGenAiImageNFTCollection001
+    self.CollectionPublicPath = /public/flowGenAiImageNFTCollection001
+    self.MinterStoragePath = /storage/flowGenAiImageNFTMinter001
+    self.AdminStoragePath = /storage/flowGenAiImageAdmin001
     
     // Initialize Royalty Configuration (replace with your actual values)
     self.platformRoyaltyRate = 0.025 // 2.5%
-    self.platformRoyaltyReceiverAddress = 0xf8d6e0586b0a20c7 // Replace with FlowGen's actual address (e.g., your emulator-account's address)
+    self.platformRoyaltyReceiverAddress = feeReceiverAddress // Replace with FlowGen's actual address (e.g., your emulator-account's address)
     self.creatorRoyaltyRate = 0.05 // 5%
     self.account.storage.save(<- create NFTMinter(), to: self.MinterStoragePath)
 
+    // Create and save the Admin resource
+    let admin <- create Admin()
+    self.account.storage.save(<-admin, to: self.AdminStoragePath)
+
+    log("FlowGenAiImage contract initialized and Admin resource saved to ".concat(self.AdminStoragePath.toString()))
   }
 
   access(all) fun createEmptyCollection(nftType: Type): @{NonFungibleToken.Collection} {

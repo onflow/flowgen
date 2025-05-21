@@ -53,3 +53,7 @@ imports
 
 .vercel
 .env*.local
+
+/public/canvas
+/public/pixels
+public/pixels-metadata.json

@@ -4,7 +4,7 @@ import path from "path";
 import sharp from "sharp";
 import OpenAI from "openai";
 import axios from "axios";
-import { stylePromptTemplates } from "@/lib/prompt-style";
+import { CuteArtStyle, stylePromptTemplates } from "@/lib/prompt-style";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -145,9 +145,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Add validation for style to ensure it exists in stylePromptTemplates
+    const validStyle =
+      style && Object.keys(stylePromptTemplates).includes(style)
+        ? (style as CuteArtStyle)
+        : "pixelArt"; // Default to pixelArt if invalid
+
+    // Use the validated style
+    const styledPrompt = stylePromptTemplates[validStyle](prompt);
+    console.log("styledPrompt", styledPrompt);
     const response = await openai.images.generate({
       model: "dall-e-3",
-      prompt: `Create a ${style} art style ${prompt} with transparent background. ONLY the ${prompt} itself should be visible - no UI elements, no color palettes, no thumbnails, no multiple versions. Just a single isolated ${prompt} centered in the image.`,
+      prompt: `Create ${styledPrompt}. ONLY the ${prompt} itself should be visible - no UI elements, no color palettes, no thumbnails, no multiple versions. Just a single isolated ${prompt} centered in the image.`,
       n: 1,
       size: "1024x1024",
     });

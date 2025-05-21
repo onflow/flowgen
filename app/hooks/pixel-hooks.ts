@@ -33,6 +33,7 @@ import GET_PIXEL_PRICE_CDC from "@/cadence/scripts/GetPixelPrice.cdc";
 import GET_LATEST_BACKGROUND_INFO_CDC from "@/cadence/scripts/GetLatestBackgroundInfo.cdc"; // Import new script
 import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 import { CuteArtStyle, generateStyledPrompt } from "@/lib/prompt-style";
+import { recordNewCanvasBackgroundVersion } from "../actions/canvas-background-actions";
 
 // Hook for initializing user profile
 export function useInitializeUserProfile() {
@@ -171,6 +172,8 @@ export function useAcquirePixelSpace({
 
       console.log("Initiating Flow transaction for pixel purchase...");
 
+      console.log("cid", cid);
+
       const finalPixelName = `Pixel Art #${x}-${y}`;
       const finalDescription = prompt;
       const finalAiCadencePrompt = generateStyledPrompt(style, prompt);
@@ -204,6 +207,16 @@ export function useAcquirePixelSpace({
           args: args,
           limit: 999,
         });
+        if (finalPixelData) {
+          const imageHash = cid;
+
+          await recordNewCanvasBackgroundVersion({
+            imageHash,
+            triggeringPixelID: finalPixelData?.pixelId?.toString() || null,
+            triggeringEventTransactionID: txIdFromHookData || null,
+            triggeringAiImageID: null,
+          });
+        }
         // The actual call to trackNftPurchaseAndUpdateDb will happen in the useEffect below
         // once txIdFromHookData is set by useFlowMutate.
       } catch (e: unknown) {

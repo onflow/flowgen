@@ -5,6 +5,7 @@ import AIImageGenerator from "./ai-image-generator";
 import { CUTE_ART_STYLES, CUTE_ART_STYLE_LABELS } from "@/lib/prompt-style";
 import { CuteArtStyle } from "@/lib/prompt-style";
 import { useAcquirePixelSpace } from "@/app/hooks/pixel-hooks";
+import { recordNewCanvasBackgroundVersion } from "@/app/actions/canvas-background-actions";
 
 interface GenerateResult {
 	canvasUrl?: string;
@@ -101,6 +102,8 @@ export function PurchasePanel({
 				imageMediaType: "image/png",
 				backendPaymentAmount: 0,
 			});
+
+
 
 			if (onPurchaseSuccess) {
 				onPurchaseSuccess();

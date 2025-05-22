@@ -197,6 +197,9 @@ export function useAcquirePixelSpace({
 				arg(mediaType, t.String),
 				arg(flowPaymentAmount, t.UFix64),
 			];
+			console.log(
+				`flow transactions send cadence/transactions/PurchasePixel.cdc ${x} ${y} "${finalPixelName}" "${finalDescription}" "${finalAiCadencePrompt}" "${finalIpfsImageCID}" "${mediaType}" ${flowPaymentAmount}`
+			);
 			try {
 				// Mutate will set txIdFromHookData when the transaction is submitted
 				mutate({

@@ -19,6 +19,10 @@ export async function POST(request: Request) {
 			prompt: enhancedPrompt,
 			n: 1,
 			size: "1024x1024",
+			quality: "high",
+			moderation: "low",
+			background: "transparent",
+			output_format: "png",
 		});
 
 		console.log("response", response);

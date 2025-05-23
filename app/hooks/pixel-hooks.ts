@@ -497,10 +497,10 @@ export function useCanvasSectionData(params: CanvasSectionParams | null) {
 		cadence: GET_CANVAS_SECTION_DATA_CDC,
 		args: params
 			? (arg: any, t: any) => [
-					arg(params.startX, t.UInt16),
-					arg(params.startY, t.UInt16),
-					arg(params.width, t.UInt16),
-					arg(params.height, t.UInt16),
+					arg(params.startX.toString(), t.UInt16),
+					arg(params.startY.toString(), t.UInt16),
+					arg(params.width.toString(), t.UInt16),
+					arg(params.height.toString(), t.UInt16),
 			  ]
 			: () => [],
 		query: {
@@ -575,7 +575,10 @@ export function usePixelPrice({ x, y }: UsePixelPriceProps) {
 		refetch,
 	} = useFlowQuery({
 		cadence: GET_PIXEL_PRICE_CDC,
-		args: (arg: any, t: any) => [arg(x, t.UInt16), arg(y, t.UInt16)],
+		args: (arg: any, t: any) => [
+			arg(x.toString(), t.UInt16),
+			arg(y.toString(), t.UInt16),
+		],
 		query: {
 			enabled: typeof x === "number" && typeof y === "number",
 			staleTime: 0, // Cache for 30 seconds

@@ -4,13 +4,15 @@ import {
 } from "@/lib/prompt-style";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import sharp from "sharp";
 
 // Server-side API key fetch from env
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 });
 
-const userPrompt = "This background image is an ";
+const userPrompt =
+	"A 2D anime-style digital illustration of a tropical landscape designed to fit a 16x16 grid layout. The scene is viewed from a high, 45-degree isometric angle. The environment features evenly spaced, detailed palm trees with clean outlines and subtle shading. Vegetation is sparse—minimal low jungle plants and grasses—so that each grid cell remains clear and distinct. The terrain is mostly natural ground in warm, earthy tones, with subtle use of brand colors #00EF8B and #02D87E in the foliage accents. A small beach curves through the background, with a hint of calm, turquoise water beyond it. The color palette avoids overly bright greens, favoring balanced, natural hues. The entire composition is clean and open, perfect for placing custom characters or objects into individual grid cells.";
 
 export async function POST(request: Request) {
 	try {
@@ -79,18 +81,42 @@ export async function POST(request: Request) {
 
 		const imageFile = await bgImageResponse.blob();
 		const maskFile = await maskResponse.blob();
-		const pixelImageFile = await pixelImageResponse.blob();
+		const pixelImageBlob = await pixelImageResponse.blob();
 
-		// Note: The 'image' parameter for openai.images.edit takes a single file.
-		// If pixelImageFile needs to be part of the edited image, it would need to be
-		// composited with imageFile before this step, or the prompt adjusted.
+		// Duplicate background image and apply mask's alpha channel
+		const [bgBuf, maskBuf] = await Promise.all([
+			imageFile.arrayBuffer(),
+			maskFile.arrayBuffer(),
+		]);
+
+		// Extract alpha channel from mask
+		const alphaChannel = await sharp(Buffer.from(maskBuf))
+			.ensureAlpha()
+			.extractChannel("alpha")
+			.toBuffer();
+
+		// Create a new image with background + mask's alpha channel
+		const maskWithAlphaBuf = await sharp(Buffer.from(bgBuf))
+			.joinChannel(alphaChannel)
+			.png()
+			.toBuffer();
+
+		// Build File objects for OpenAI
+		const backgroundFile = new File([imageFile], "background.png", {
+			type: "image/png",
+		});
+		const maskFileWithAlpha = new File([maskWithAlphaBuf], "mask.png", {
+			type: "image/png",
+		});
+
+		const pixelImageFile = new File([pixelImageBlob], "pixel.png", {
+			type: "image/png",
+		});
+
 		const response = await openai.images.edit({
 			model: "gpt-image-1",
-			image: [
-				new File([imageFile], "background.png", { type: "image/png" }),
-				new File([pixelImageFile], "pixel.png", { type: "image/png" }),
-			],
-			mask: new File([maskFile], "mask.png", { type: "image/png" }),
+			image: [backgroundFile, pixelImageFile],
+			mask: maskFileWithAlpha,
 			prompt: enhancedPrompt,
 			n: 1,
 			size: "1024x1024",

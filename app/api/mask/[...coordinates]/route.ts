@@ -56,7 +56,7 @@ export async function GET(
 				width: MASK_DIMENSION,
 				height: MASK_DIMENSION,
 				channels: 4, // RGBA
-				background: { r: 0, g: 0, b: 0, alpha: 1 }, // Opaque black background
+				background: { r: 100, g: 100, b: 100, alpha: 1 }, // Opaque white background
 			},
 		})
 			.composite([

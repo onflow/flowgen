@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 		const { prompt, style } = await request.json();
 
 		// Customize prompt based on style
-		let enhancedPrompt = generateStyledPrompt(style, prompt);
+		const enhancedPrompt = generateStyledPrompt(style, prompt);
 
 		const response = await openai.images.generate({
 			model: "gpt-image-1",

@@ -130,7 +130,7 @@ export async function GET(request: Request) {
 			const latestBlockInfo = await fcl.block({ sealed: true });
 			const currentChainHeight = latestBlockInfo.height;
 
-			let fromBlock = initialFromBlock + 1;
+			const fromBlock = initialFromBlock + 1;
 
 			if (fromBlock > currentChainHeight) {
 				console.log(
@@ -187,14 +187,141 @@ export async function GET(request: Request) {
 							console.log(`  Transaction ID: ${event.transactionId}`);
 							console.log(`  Block Height: ${event.blockHeight}`);
 
-							// TODO: Implement your actual data processing logic here for PixelMinted and PixelImageUpdated
-							// if (event.type.endsWith('PixelMinted')) {
-							//     const { id, x, y, initialAiImageNftID } = event.data;
-							//     // await db.insert(pixelsTable).values({ id, x, y, aiImageNftID: initialAiImageNftID, ownerId: event.transactionSigner? or from event if available... });
-							// } else if (event.type.endsWith('PixelImageUpdated')) {
-							//     const { pixelId, newAiImageNftID, x, y } = event.data;
-							//     // await db.update(pixelsTable).set({ aiImageNftID: newAiImageNftID }).where(eq(pixelsTable.id, pixelId));
-							// }
+							// Process PixelMinted and PixelImageUpdated events
+							if (event.type.endsWith("PixelMinted")) {
+								const {
+									id,
+									x,
+									y,
+									initialAiImageNftID,
+									artworkName,
+									artworkDescription,
+									aiPrompt,
+									ipfsImageCID, // This is the image hash you need!
+									imageMediaType,
+									paymentAmount,
+								} = event.data;
+
+								console.log(
+									`PixelMinted Event - Pixel ID: ${id}, Position: (${x}, ${y}), Image Hash: ${ipfsImageCID}`
+								);
+
+								// Trigger background update
+								try {
+									const baseUrl =
+										process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+									const response = await fetch(
+										`${baseUrl}/api/background-update`,
+										{
+											method: "POST",
+											headers: {
+												"Content-Type": "application/json",
+											},
+											body: JSON.stringify({
+												eventType: "PixelMinted",
+												transactionId: event.transactionId,
+												pixelId: id,
+												x: x,
+												y: y,
+												ipfsImageCID: ipfsImageCID,
+												triggeringAiImageID: initialAiImageNftID,
+											}),
+										}
+									);
+
+									if (!response.ok) {
+										console.error(
+											`Failed to trigger background update: ${await response.text()}`
+										);
+									} else {
+										const result = await response.json();
+										console.log("Background update triggered:", result);
+									}
+								} catch (error) {
+									console.error("Error triggering background update:", error);
+								}
+
+								// TODO: Store pixel data in database
+								// await db.insert(pixelsTable).values({
+								//     id,
+								//     x,
+								//     y,
+								//     aiImageNftID: initialAiImageNftID,
+								//     ipfsImageCID,
+								//     artworkName,
+								//     artworkDescription,
+								//     aiPrompt,
+								//     imageMediaType,
+								//     ownerId: event.authorizers?.[0] // or extract from event
+								// });
+							} else if (event.type.endsWith("PixelImageUpdated")) {
+								const {
+									pixelId,
+									newAiImageNftID,
+									x,
+									y,
+									artworkName,
+									artworkDescription,
+									aiPrompt,
+									ipfsImageCID, // Updated image hash
+									imageMediaType,
+								} = event.data;
+
+								console.log(
+									`PixelImageUpdated Event - Pixel ID: ${pixelId}, Position: (${x}, ${y}), New Image Hash: ${ipfsImageCID}`
+								);
+
+								// Trigger background update
+								try {
+									const baseUrl =
+										process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+									const response = await fetch(
+										`${baseUrl}/api/background-update`,
+										{
+											method: "POST",
+											headers: {
+												"Content-Type": "application/json",
+											},
+											body: JSON.stringify({
+												eventType: "PixelImageUpdated",
+												transactionId: event.transactionId,
+												pixelId: pixelId,
+												x: x,
+												y: y,
+												ipfsImageCID: ipfsImageCID,
+												triggeringAiImageID: newAiImageNftID,
+											}),
+										}
+									);
+
+									if (!response.ok) {
+										console.error(
+											`Failed to trigger background update: ${await response.text()}`
+										);
+									} else {
+										const result = await response.json();
+										console.log("Background update triggered:", result);
+									}
+								} catch (error) {
+									console.error("Error triggering background update:", error);
+								}
+
+								// TODO: Update pixel image in database
+								// await db.update(pixelsTable)
+								//     .set({
+								//         aiImageNftID: newAiImageNftID,
+								//         ipfsImageCID,
+								//         artworkName,
+								//         artworkDescription,
+								//         aiPrompt,
+								//         imageMediaType,
+								//         updatedAt: new Date()
+								//     })
+								//     .where(eq(pixelsTable.id, pixelId));
+
+								// You can now use ipfsImageCID to update your background image
+								// The full IPFS URL would be: https://ipfs.io/ipfs/${ipfsImageCID}
+							}
 						}
 					}
 					lastSuccessfullyProcessedBlock = currentQueryToBlock;

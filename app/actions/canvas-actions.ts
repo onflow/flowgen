@@ -599,6 +599,8 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 			let pixelX: number | undefined;
 			let pixelY: number | undefined;
 			let ownerId: string | undefined;
+			let eventIpfsImageCID: string | undefined;
+			let initialAiImageNftID: number | undefined;
 
 			// Extract data from events
 			for (const event of txStatus.events) {
@@ -608,8 +610,12 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 					nftIdOnChain = String(event.data.id); // Assuming id is UInt64, convert to string
 					pixelX = parseInt(event.data.x, 10); // Assuming x is UInt16
 					pixelY = parseInt(event.data.y, 10); // Assuming y is UInt16
+					eventIpfsImageCID = event.data.ipfsImageCID; // Get the actual CID from the event
+					initialAiImageNftID = event.data.initialAiImageNftID
+						? parseInt(event.data.initialAiImageNftID, 10)
+						: undefined;
 					console.log(
-						`Extracted from PixelMinted: nftId=${nftIdOnChain}, x=${pixelX}, y=${pixelY}`
+						`Extracted from PixelMinted: nftId=${nftIdOnChain}, x=${pixelX}, y=${pixelY}, ipfsImageCID=${eventIpfsImageCID}`
 					);
 				}
 				// Example: "A.STANDARD_NFT_ADDRESS.NonFungibleToken.Deposit"
@@ -688,7 +694,7 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 						isTaken: true,
 						ownerId: ownerId,
 						nftId: nftIdOnChain, // Use the actual NFT ID from the event
-						ipfsImageCID,
+						ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
 						imageMediaType,
 						prompt,
 						style,
@@ -711,6 +717,62 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 				console.log(
 					`Pixel (${pixelX},${pixelY}) acquired by ${ownerId}, DB updated. NFT ID: ${result[0].nftId}`
 				);
+
+				// Trigger background update immediately
+				try {
+					console.log(
+						`curl -X POST ${
+							process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+						}/api/background-update -H "Content-Type: application/json" -d '${JSON.stringify(
+							{
+								eventType: "PixelMinted",
+								transactionId: txId,
+								pixelId: nftIdOnChain,
+								x: pixelX,
+								y: pixelY,
+								ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+								triggeringAiImageID: initialAiImageNftID, // We don't have this info in the current flow
+							}
+						)}'`
+					);
+
+					const backgroundUpdateResponse = await fetch(
+						`${
+							process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+						}/api/background-update`,
+						{
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({
+								eventType: "PixelMinted",
+								transactionId: txId,
+								pixelId: nftIdOnChain,
+								x: pixelX,
+								y: pixelY,
+								ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+								triggeringAiImageID: initialAiImageNftID, // We don't have this info in the current flow
+							}),
+						}
+					);
+
+					if (!backgroundUpdateResponse.ok) {
+						console.error(
+							`Failed to trigger background update: ${await backgroundUpdateResponse.text()}`
+						);
+					} else {
+						const bgUpdateResult = await backgroundUpdateResponse.json();
+						console.log(
+							"Background update triggered immediately:",
+							bgUpdateResult
+						);
+					}
+				} catch (bgError) {
+					console.error("Error triggering background update:", bgError);
+					// Don't fail the pixel purchase if background update fails
+				}
+
 				return { success: true, pixelId: result[0].nftId };
 			} catch (dbError: any) {
 				console.error(

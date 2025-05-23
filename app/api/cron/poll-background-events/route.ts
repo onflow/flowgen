@@ -127,7 +127,7 @@ export async function GET(request: Request) {
 		const latestBlock = await fcl.block({ sealed: true });
 		const currentChainHeight = latestBlock.height;
 
-		let fromBlock = initialFromBlock + 1; // Start from the block after the last one polled
+		const fromBlock = initialFromBlock + 1; // Start from the block after the last one polled
 
 		if (fromBlock > currentChainHeight) {
 			console.log(

@@ -1,5 +1,6 @@
 import * as fcl from "@onflow/fcl";
 import { serverAuthorization } from "./server-authz"; // Import server authorization
+import flowJSON from "../flow.json";
 
 const NEXT_PUBLIC_FLOW_ENDPOINT_URL = process.env.NEXT_PUBLIC_FLOW_ENDPOINT_URL;
 const NEXT_PUBLIC_FLOW_NETWORK =
@@ -23,18 +24,20 @@ if (
 }
 
 // Base FCL configuration
-fcl.config({
-	"app.detail.title": "FlowGen Backend", // You can customize this
-	"app.detail.icon": "https://flowgen.art/favicon.ico", // Replace with your app's icon
-	"accessNode.api":
-		NEXT_PUBLIC_FLOW_ENDPOINT_URL ||
-		(NEXT_PUBLIC_FLOW_NETWORK === "emulator"
-			? "http://localhost:8888"
-			: NEXT_PUBLIC_FLOW_NETWORK === "testnet"
-			? "https://rest-testnet.onflow.org"
-			: "https://rest-mainnet.onflow.org"),
-	"flow.network": NEXT_PUBLIC_FLOW_NETWORK,
-});
+fcl
+	.config({
+		"app.detail.title": "FlowGen Backend", // You can customize this
+		"app.detail.icon": "https://flowgen.art/favicon.ico", // Replace with your app's icon
+		"accessNode.api":
+			NEXT_PUBLIC_FLOW_ENDPOINT_URL ||
+			(NEXT_PUBLIC_FLOW_NETWORK === "emulator"
+				? "http://localhost:8888"
+				: NEXT_PUBLIC_FLOW_NETWORK === "testnet"
+				? "https://rest-testnet.onflow.org"
+				: "https://rest-mainnet.onflow.org"),
+		"flow.network": NEXT_PUBLIC_FLOW_NETWORK,
+	})
+	.load({ flowJSON });
 
 // Discovery settings based on network (primarily for client-side, but good to have consistent config)
 if (NEXT_PUBLIC_FLOW_NETWORK === "emulator") {

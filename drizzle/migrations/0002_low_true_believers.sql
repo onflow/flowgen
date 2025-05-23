@@ -1,0 +1,1 @@
+ALTER TABLE "processed_events" ALTER COLUMN "pixel_id" SET DATA TYPE text;

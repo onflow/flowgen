@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 		console.log("pixelImageUrl", pixelImageUrl);
 		console.log("backgroundImageUrl", backgroundImageUrl);
 		// Customize prompt based on style
-		let enhancedPrompt = generateBackgroundPrompt(userPrompt, pX, pY);
+		const enhancedPrompt = generateBackgroundPrompt(userPrompt, pX, pY);
 
 		// Fetch image and mask data
 		const bgImageResponse = await fetch(backgroundImageUrl);

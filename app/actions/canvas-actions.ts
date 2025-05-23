@@ -599,6 +599,8 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 			let pixelX: number | undefined;
 			let pixelY: number | undefined;
 			let ownerId: string | undefined;
+			let eventIpfsImageCID: string | undefined;
+			let initialAiImageNftID: number | undefined;
 
 			// Extract data from events
 			for (const event of txStatus.events) {
@@ -608,8 +610,12 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 					nftIdOnChain = String(event.data.id); // Assuming id is UInt64, convert to string
 					pixelX = parseInt(event.data.x, 10); // Assuming x is UInt16
 					pixelY = parseInt(event.data.y, 10); // Assuming y is UInt16
+					eventIpfsImageCID = event.data.ipfsImageCID; // Get the actual CID from the event
+					initialAiImageNftID = event.data.initialAiImageNftID
+						? parseInt(event.data.initialAiImageNftID, 10)
+						: undefined;
 					console.log(
-						`Extracted from PixelMinted: nftId=${nftIdOnChain}, x=${pixelX}, y=${pixelY}`
+						`Extracted from PixelMinted: nftId=${nftIdOnChain}, x=${pixelX}, y=${pixelY}, ipfsImageCID=${eventIpfsImageCID}`
 					);
 				}
 				// Example: "A.STANDARD_NFT_ADDRESS.NonFungibleToken.Deposit"
@@ -690,7 +696,7 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 						isTaken: true,
 						ownerId: ownerId,
 						nftId: nftIdOnChain, // Use the actual NFT ID from the event
-						ipfsImageCID,
+						ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
 						imageMediaType,
 						prompt,
 						style,

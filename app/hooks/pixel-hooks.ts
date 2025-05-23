@@ -33,6 +33,7 @@ import GET_PIXEL_PRICE_CDC from "@/cadence/scripts/GetPixelPrice.cdc";
 import GET_LATEST_BACKGROUND_INFO_CDC from "@/cadence/scripts/GetLatestBackgroundInfo.cdc"; // Import new script
 import { createIpfsCidFromImageUrl } from "../actions/create-ipfs-cid";
 import { CuteArtStyle, generateStyledPrompt } from "@/lib/prompt-style";
+import * as fcl from "@onflow/fcl";
 
 // Hook for initializing user profile
 export function useInitializeUserProfile() {
@@ -192,9 +193,12 @@ export function useAcquirePixelSpace({
 				flowPaymentAmount,
 			});
 
-			const args = (arg: any, t: any): any[] => [
-				arg(x, t.UInt16),
-				arg(y, t.UInt16),
+			const args = (
+				arg: (value: any, type: any) => any,
+				t: typeof fcl.t
+			): any[] => [
+				arg(x.toString(), t.UInt16),
+				arg(y.toString(), t.UInt16),
 				arg(finalPixelName, t.String),
 				arg(finalDescription, t.String),
 				arg(finalAiCadencePrompt, t.String),

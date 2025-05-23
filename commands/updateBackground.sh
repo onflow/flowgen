@@ -1,0 +1,1 @@
+curl -X POST http://localhost:3000/api/update-canvas -H "Content-Type: application/json" -d '{"newImageCID":"bafybeicyjtefat5uqs7hyexaq6sh62iel4fovuqwfce3m567zeajape3ui","transactionId":"c7c249020133ca0d549c3448d192c026db28bbf5818e69a34f490e98395abb0d","pixelId":"229797930205186","triggeringAiImageID":229797930205185}'

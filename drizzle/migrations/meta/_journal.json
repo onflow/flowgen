@@ -8,6 +8,20 @@
       "when": 1747735308529,
       "tag": "0000_futuristic_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1747996522698,
+      "tag": "0001_white_expediter",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748005466513,
+      "tag": "0002_low_true_believers",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import {
 	numeric,
 	timestamp,
 	uniqueIndex,
+	bigint,
 } from "drizzle-orm/pg-core";
 
 export const pixels = pgTable(
@@ -57,4 +58,22 @@ export const eventPollingStatus = pgTable("event_polling_status", {
 		.notNull()
 		.defaultNow()
 		.$onUpdate(() => new Date()),
+});
+
+export const backgroundUpdateLocks = pgTable("background_update_locks", {
+	lockKey: text("lock_key").primaryKey(),
+	acquiredAt: timestamp("acquired_at").notNull().defaultNow(),
+	expiresAt: timestamp("expires_at").notNull(),
+	holderId: text("holder_id").notNull(),
+});
+
+export const processedEvents = pgTable("processed_events", {
+	id: serial("id").primaryKey(),
+	transactionId: text("transaction_id").unique().notNull(),
+	eventType: text("event_type").notNull(),
+	pixelId: text("pixel_id").notNull(),
+	processedAt: timestamp("processed_at").notNull().defaultNow(),
+	status: text("status").notNull(), // 'success', 'failed'
+	errorMessage: text("error_message"),
+	metadata: text("metadata"), // JSON string for additional data
 });

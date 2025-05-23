@@ -234,8 +234,8 @@ async function updateCanvasBackground(
 }
 
 export async function POST(request: Request) {
-	let lockHolderId: string | null = null;
-	let lockKey: string | null = null;
+	const lockHolderId: string | null = null;
+	const lockKey: string | null = null;
 	const body: UpdateCanvasRequest = await request.json();
 	const { newImageCID, transactionId, pixelId, triggeringAiImageID } = body;
 

@@ -15,22 +15,11 @@ async function createCarFromBytes(
 	fileName: string,
 	fileBytes: Uint8Array
 ): Promise<{ rootCID: CID; carBytes: Uint8Array }> {
-	console.time("createCarFromBytes_total");
-
-	console.time("createCarFromBytes_unixfs_pb");
 	const unixfs = new UnixFS({ type: "file", data: fileBytes });
 	const unixfsMarshalledBytes = unixfs.marshal();
 	const pbNodeBytes = dagPb.encode({ Data: unixfsMarshalledBytes, Links: [] });
-	console.log(`pbNodeBytes length: ${pbNodeBytes.length}`);
-	console.timeEnd("createCarFromBytes_unixfs_pb");
-
-	console.time("createCarFromBytes_hash");
 	const hash = await sha256.digest(pbNodeBytes);
 	const rootCID = CID.create(1, dagPb.code, hash);
-	console.log("Root CID for CAR:", rootCID.toString());
-	console.timeEnd("createCarFromBytes_hash");
-
-	console.time("createCarFromBytes_carwriter_setup_and_put");
 	const { writer, out } = CarWriter.create([rootCID]);
 
 	// Start consuming 'out' concurrently.
@@ -42,25 +31,11 @@ async function createCarFromBytes(
 		return Buffer.concat(carChunks);
 	})();
 
-	console.log("Before writer.put");
 	await writer.put({ cid: rootCID, bytes: pbNodeBytes });
-	console.log("After writer.put, before writer.close");
-	console.timeEnd("createCarFromBytes_carwriter_setup_and_put");
-
-	console.time("createCarFromBytes_writer_close");
 	await writer.close(); // This will signal the 'out' async iterable to end.
-	console.log("After writer.close");
-	console.timeEnd("createCarFromBytes_writer_close");
-
-	console.time("createCarFromBytes_car_stream_consume");
 	// Now, wait for the concurrent consumption to finish.
 	const carBytes = await carBytesPromise;
-	console.timeEnd("createCarFromBytes_car_stream_consume");
-	console.log(
-		`In-memory CAR stream consumed. Total CAR size: ${carBytes.length}`
-	);
 
-	console.timeEnd("createCarFromBytes_total");
 	return { rootCID, carBytes: carBytes };
 }
 
@@ -99,7 +74,6 @@ export async function createIpfsCidFromImageUrl(
 	let fileName: string;
 
 	try {
-		console.log(`Fetching image from: ${imageUrl}`);
 		const response = await fetch(imageUrl);
 		if (!response.ok) {
 			throw new Error(
@@ -122,17 +96,9 @@ export async function createIpfsCidFromImageUrl(
 
 	try {
 		const imageBytes = new Uint8Array(await imageBlob.arrayBuffer());
-		console.log(
-			`Calling createCarFromBytes for: ${fileName} (${imageBytes.length} bytes)`
-		);
 		const { rootCID, carBytes } = await createCarFromBytes(
 			fileName,
 			imageBytes
-		);
-		console.log(
-			`CAR file created. Root CID (content): ${rootCID.toString()}, CAR size: ${
-				carBytes.length
-			} bytes`
 		);
 
 		// Calculate CID of the CAR file itself
@@ -140,9 +106,6 @@ export async function createIpfsCidFromImageUrl(
 		// Use CAR codec (0x0202) for the CAR file CID
 		const CAR_CODEC = 0x0202;
 		const carFileCID = CID.create(1, CAR_CODEC, carFileHash);
-		console.log(
-			`CAR file CID: ${carFileCID.toString()} (using CAR codec ${CAR_CODEC})`
-		);
 
 		const uploadAddPayload = {
 			tasks: [
@@ -158,11 +121,6 @@ export async function createIpfsCidFromImageUrl(
 				],
 			],
 		};
-
-		console.log(
-			"Invoking upload/add via HTTP Bridge to https://up.web3.storage with JSON payload:",
-			JSON.stringify(uploadAddPayload, null, 2)
-		);
 
 		const bridgeResponse = await fetch("https://up.storacha.network/bridge", {
 			method: "POST",
@@ -181,18 +139,12 @@ export async function createIpfsCidFromImageUrl(
 			);
 		}
 		const responseJson = await bridgeResponse.json();
-		console.log(
-			`HTTP Bridge response status: ${bridgeResponse.status} ${bridgeResponse.statusText}`
-		);
-
-		console.log("HTTP Bridge response text:", JSON.stringify(responseJson));
 
 		if (!Array.isArray(responseJson) || responseJson.length === 0) {
 			throw new Error(
 				`Invalid response from HTTP Bridge: ${JSON.stringify(responseJson)}`
 			);
 		}
-		console.log("responseJson", JSON.stringify(responseJson, null, 2));
 
 		const task = responseJson[0];
 		if (!task.p.out?.ok) {

@@ -67,3 +67,11 @@ export function generateStyledPrompt(
 	const template = stylePromptTemplates[style];
 	return template(userPrompt);
 }
+
+export function generateBackgroundPrompt(
+	userPrompt: string,
+	pixelX: number,
+	pixelY: number
+): string {
+	return `Can you place and squash the opaque parts of the second image onto the first image by using only the masked of the background area described by the 3rd image? The new element being placed should be incorporated into the backgrond at that spot as if it were part of the background. Please leave the rest of the background as is. The placed element should not take up more space than 64x64 pixels and should be placed at the coordinates ${pixelX},${pixelY}.`;
+}

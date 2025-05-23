@@ -61,7 +61,7 @@ export default function PurchasePanel({
 	});
 
 	const handleGenerate = async () => {
-		if (!selectedSpace || !user.loggedIn || !user.addr) {
+		if (!selectedSpace || !user?.loggedIn || !user?.addr) {
 			console.error(
 				"User not logged in or address not available, or no space selected."
 			);
@@ -79,7 +79,7 @@ export default function PurchasePanel({
 				imageMediaType: "image/jpeg",
 				flowPaymentAmount: pixelPrice === null ? "0" : pixelPrice.toFixed(8),
 				backendPaymentAmount: pixelPrice === null ? 0 : pixelPrice,
-				userId: user.addr,
+				userId: user?.addr,
 			});
 		} catch (error) {
 			console.error("Error during pixel acquisition process:", error);
@@ -104,7 +104,7 @@ export default function PurchasePanel({
 		);
 	}
 
-	if (!user.loggedIn) {
+	if (!user?.loggedIn) {
 		return (
 			<div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
 				<Wallet className="h-12 w-12 mb-3" />

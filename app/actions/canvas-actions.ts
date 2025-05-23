@@ -668,6 +668,8 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 						return {
 							success: true,
 							pixelId: existingPixel[0].nftId,
+							ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+							triggeringAiImageID: initialAiImageNftID,
 						};
 					}
 					// If NFT IDs don't match, this is a more complex situation.
@@ -711,7 +713,72 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 				console.log(
 					`Pixel (${pixelX},${pixelY}) acquired by ${ownerId}, DB updated. NFT ID: ${result[0].nftId}`
 				);
-				return { success: true, pixelId: result[0].nftId };
+
+				// Background update is now handled by the frontend with progress updates
+				// Commenting out server-side trigger to prevent duplicates
+				/*
+				// Trigger background update immediately
+				try {
+					console.log(
+						`curl -X POST ${
+							process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+						}/api/background-update -H "Content-Type: application/json" -d '${JSON.stringify(
+							{
+								eventType: "PixelMinted",
+								transactionId: txId,
+								pixelId: nftIdOnChain,
+								x: pixelX,
+								y: pixelY,
+								ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+								triggeringAiImageID: initialAiImageNftID, // We don't have this info in the current flow
+							}
+						)}'`
+					);
+
+					const backgroundUpdateResponse = await fetch(
+						`${
+							process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+						}/api/background-update`,
+						{
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({
+								eventType: "PixelMinted",
+								transactionId: txId,
+								pixelId: nftIdOnChain,
+								x: pixelX,
+								y: pixelY,
+								ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+								triggeringAiImageID: initialAiImageNftID, // We don't have this info in the current flow
+							}),
+						}
+					);
+
+					if (!backgroundUpdateResponse.ok) {
+						console.error(
+							`Failed to trigger background update: ${await backgroundUpdateResponse.text()}`
+						);
+					} else {
+						const bgUpdateResult = await backgroundUpdateResponse.json();
+						console.log(
+							"Background update triggered immediately:",
+							bgUpdateResult
+						);
+					}
+				} catch (bgError) {
+					console.error("Error triggering background update:", bgError);
+					// Don't fail the pixel purchase if background update fails
+				}
+				*/
+
+				return {
+					success: true,
+					pixelId: result[0].nftId,
+					ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+					triggeringAiImageID: initialAiImageNftID,
+				};
 			} catch (dbError: any) {
 				console.error(
 					`Database error after Flow transaction ${txId} (NFT ${nftIdOnChain}) was successful:`,
@@ -733,7 +800,12 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 						console.log(
 							`Pixel (${pixelX},${pixelY}) with NFT ID ${nftIdOnChain} already exists in DB due to unique constraint, likely a retry. Data matches.`
 						);
-						return { success: true, pixelId: nftIdOnChain };
+						return {
+							success: true,
+							pixelId: nftIdOnChain,
+							ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+							triggeringAiImageID: initialAiImageNftID,
+						};
 					}
 					console.error(
 						`Unique constraint violation for pixel (${pixelX},${pixelY}), but current NFT ID ${nftIdOnChain} or owner ${ownerId} does not match DB record: ${JSON.stringify(

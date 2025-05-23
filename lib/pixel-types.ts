@@ -27,6 +27,9 @@ export interface PixelOnChainData {
 export interface PixelSpaceResult {
 	success: boolean;
 	pixelId?: string;
+	txId?: string;
+	ipfsImageCID?: string;
+	triggeringAiImageID?: number;
 	error?: string;
 }
 

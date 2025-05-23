@@ -110,7 +110,12 @@ export function useAcquirePixelSpace({
 						if (!result.success) {
 							throw new Error(result.error);
 						} else {
-							onSuccess(result);
+							onSuccess({
+								...result,
+								txId: txId,
+								ipfsImageCID: result.ipfsImageCID || actionParams?.ipfsImageCID,
+								triggeringAiImageID: result.triggeringAiImageID,
+							});
 						}
 					})
 					.catch((err) => {
@@ -583,7 +588,6 @@ export function usePixelPrice({ x, y }: UsePixelPriceProps) {
 			enabled: typeof x === "number" && typeof y === "number",
 			staleTime: 0, // Cache for 30 seconds
 			select: (rawData: any): number | null => {
-				console.log("rawData", rawData, x, y);
 				if (rawData === null || typeof rawData === "undefined") return null;
 				const priceString = String(rawData);
 				const parsedPrice = parseFloat(priceString);

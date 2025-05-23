@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 			size: "1024x1024",
 			quality: "high",
 			moderation: "low",
-			background: "transparent",
+			background: "opaque",
 			output_format: "png",
 		});
 

@@ -52,6 +52,9 @@ export async function POST(request: Request) {
 		const pixelImageUrl = `https://${pixelImageCID}.ipfs.w3s.link/`; // Fetched but not directly used in OpenAI call yet
 		const maskImageUrl = `${baseUrl}/api/mask/${pX}/${pY}`;
 
+		console.log("maskImageUrl", maskImageUrl);
+		console.log("pixelImageUrl", pixelImageUrl);
+		console.log("backgroundImageUrl", backgroundImageUrl);
 		// Customize prompt based on style
 		let enhancedPrompt = generateBackgroundPrompt(userPrompt, pX, pY);
 

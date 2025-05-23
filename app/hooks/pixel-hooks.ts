@@ -576,8 +576,8 @@ export function usePixelPrice({ x, y }: UsePixelPriceProps) {
 	} = useFlowQuery({
 		cadence: GET_PIXEL_PRICE_CDC,
 		args: (arg: any, t: any) => [
-			arg(x.toString(), t.UInt16),
-			arg(y.toString(), t.UInt16),
+			arg(x?.toString() || "0", t.UInt16),
+			arg(y?.toString() || "0", t.UInt16),
 		],
 		query: {
 			enabled: typeof x === "number" && typeof y === "number",

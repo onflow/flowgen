@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Image, Camera, PlusSquare, Wallet } from "lucide-react";
+import { Image as ImageIcon, Camera, PlusSquare, Wallet } from "lucide-react";
 import { useFlowMutate } from "@onflow/kit";
 import { useCurrentFlowUser } from "@onflow/kit";
 import * as fcl from "@onflow/fcl";
@@ -13,6 +13,7 @@ import {
 	CUTE_ART_STYLES,
 	CuteArtStyle,
 } from "@/lib/prompt-style";
+import Image from "next/image";
 
 type PurchasePanelProps = {
 	selectedSpace: PixelOnChainData | null;
@@ -127,16 +128,18 @@ export default function PurchasePanel({
 				<div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-4 rounded-lg text-center">
 					{!imageURL && (
 						<div className="text-6xl mb-2 text-gray-400 dark:text-gray-500">
-							<Image className="mx-auto h-16 w-16" />
+							<ImageIcon className="mx-auto h-16 w-16" />
 						</div>
 					)}
 					{imageURL && (
 						<div>
 							<p className="text-sm font-medium mb-2">Preview:</p>
-							<img
+							<Image
 								src={imageURL}
 								alt="AI Generated Preview"
 								className="rounded-lg max-h-48 mx-auto"
+								width={192}
+								height={192}
 							/>
 						</div>
 					)}

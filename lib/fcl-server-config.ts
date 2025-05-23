@@ -62,45 +62,47 @@ if (NEXT_PUBLIC_FLOW_NETWORK === "emulator") {
 				"https://fcl-discovery.onflow.org/authn"
 		);
 }
+const isServerSide = typeof window === "undefined";
 
 // Server-Side Authorization Configuration
-if (NEXT_PUBLIC_FLOW_ADMIN_ADDRESS && process.env.FLOW_ADMIN_PRIVATE_KEY) {
-	// Check for private key too
-	// Configure FCL to use serverAuthorization for the admin account
-	// This tells FCL that for any transaction where NEXT_PUBLIC_FLOW_ADMIN_ADDRESS is the proposer/payer/authorizer,
-	// it should use serverAuthorization.
-	// Note: fcl.authz is an alias for fcl.authorizations, some examples use one or the other.
-	// fcl.config().put("fcl.authz", [serverAuthorization]); // This might be too broad or old syntax
+if (isServerSide) {
+	if (NEXT_PUBLIC_FLOW_ADMIN_ADDRESS && process.env.FLOW_ADMIN_PRIVATE_KEY) {
+		// Check for private key too
+		// Configure FCL to use serverAuthorization for the admin account
+		// This tells FCL that for any transaction where NEXT_PUBLIC_FLOW_ADMIN_ADDRESS is the proposer/payer/authorizer,
+		// it should use serverAuthorization.
+		// Note: fcl.authz is an alias for fcl.authorizations, some examples use one or the other.
+		// fcl.config().put("fcl.authz", [serverAuthorization]); // This might be too broad or old syntax
 
-	// For modern FCL, setting proposer, payer, and a specific account authorization is more robust.
-	// Ensure fcl.currentUser().authorization is not what we want for server-side, that's for client user sessions.
+		// For modern FCL, setting proposer, payer, and a specific account authorization is more robust.
+		// Ensure fcl.currentUser().authorization is not what we want for server-side, that's for client user sessions.
 
-	// The roles (proposer, payer, authorizer) for a server-signed transaction
-	// will be resolved using the serverAuthorization function itself.
-	// FCL needs to know that such a function exists to provide these roles when needed.
+		// The roles (proposer, payer, authorizer) for a server-signed transaction
+		// will be resolved using the serverAuthorization function itself.
+		// FCL needs to know that such a function exists to provide these roles when needed.
 
-	// Option 1: Make serverAuthorization the default for these roles
-	fcl.config().put("fcl.proposer", serverAuthorization);
-	fcl.config().put("fcl.payer", serverAuthorization);
-	// And provide it as a general authorization function FCL can use
-	// when it needs to authorize for the NEXT_PUBLIC_FLOW_ADMIN_ADDRESS
-	fcl.config().put("fcl.authorizations", [serverAuthorization]);
+		// Option 1: Make serverAuthorization the default for these roles
+		fcl.config().put("fcl.proposer", serverAuthorization);
+		fcl.config().put("fcl.payer", serverAuthorization);
+		// And provide it as a general authorization function FCL can use
+		// when it needs to authorize for the NEXT_PUBLIC_FLOW_ADMIN_ADDRESS
+		fcl.config().put("fcl.authorizations", [serverAuthorization]);
 
-	// Option 2 (More specific to an account, might be cleaner if you have multiple server accounts):
-	// const addr = fcl.sansPrefix(NEXT_PUBLIC_FLOW_ADMIN_ADDRESS);
-	// fcl.config().put(`fcl.account.${addr}.resolve`, serverAuthorization); // This tells FCL how to resolve the account roles to use this signer
-	// This is more about resolving account details and services, less about directly providing the authz function for fcl.mutate internal logic.
-	// For fcl.mutate, providing a global proposer/payer/authorizations that can satisfy the signing request is key.
+		// Option 2 (More specific to an account, might be cleaner if you have multiple server accounts):
+		// const addr = fcl.sansPrefix(NEXT_PUBLIC_FLOW_ADMIN_ADDRESS);
+		// fcl.config().put(`fcl.account.${addr}.resolve`, serverAuthorization); // This tells FCL how to resolve the account roles to use this signer
+		// This is more about resolving account details and services, less about directly providing the authz function for fcl.mutate internal logic.
+		// For fcl.mutate, providing a global proposer/payer/authorizations that can satisfy the signing request is key.
 
-	console.log(
-		`Server-side FCL configured to use admin account ${NEXT_PUBLIC_FLOW_ADMIN_ADDRESS} for signing transactions.`
-	);
-} else {
-	console.warn(
-		"NEXT_PUBLIC_FLOW_ADMIN_ADDRESS or FLOW_ADMIN_PRIVATE_KEY is not set. Server-side transactions will not be signed."
-	);
+		console.log(
+			`Server-side FCL configured to use admin account ${NEXT_PUBLIC_FLOW_ADMIN_ADDRESS} for signing transactions.`
+		);
+	} else {
+		console.warn(
+			"NEXT_PUBLIC_FLOW_ADMIN_ADDRESS or FLOW_ADMIN_PRIVATE_KEY is not set. Server-side transactions will not be signed."
+		);
+	}
 }
-
 export { fcl };
 // If you need Cadence types (like t.String), you can export them from here too or import directly
 // export * as t from "@onflow/types";

@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 type PixelDetailsProps = {
 	pixel: {
 		id: number;
@@ -13,10 +15,12 @@ export default function PixelDetails({ pixel, onClose }: PixelDetailsProps) {
 	return (
 		<div className="p-6">
 			<h2 className="text-xl font-bold mb-4">Pixel Details</h2>
-			<img
+			<Image
 				src={pixel.image || "/default-image.png"}
 				alt={`Pixel at ${pixel.x},${pixel.y}`}
 				className="w-full rounded-lg mb-4"
+				width={192}
+				height={192}
 			/>
 			<p>
 				Position: ({pixel.x}, {pixel.y})

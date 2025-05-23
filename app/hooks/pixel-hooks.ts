@@ -23,7 +23,7 @@ import {
 	getAllGridDataServerAction,
 } from "../actions/canvas-actions"; // Import server action directly
 
-import { useFlowMutate, useFlowQuery, useFlowTransaction } from "@onflow/kit";
+import { useFlowMutate, useFlowQuery } from "@onflow/kit";
 
 // Import the Cadence script as a raw string
 import PURCHASE_PIXEL_CADENCE from "@/cadence/transactions/PurchasePixel.cdc";

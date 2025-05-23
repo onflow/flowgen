@@ -5,7 +5,7 @@ import { useCurrentFlowUser } from "@onflow/kit";
 
 export default function Header() {
 	const { user, authenticate, unauthenticate } = useCurrentFlowUser();
-	const address = user.addr;
+	const address = user?.addr;
 
 	return (
 		<header className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
@@ -15,7 +15,7 @@ export default function Header() {
 					FlowGen
 				</h1>
 				<div className="flex items-center space-x-4">
-					{user.loggedIn ? (
+					{user?.loggedIn ? (
 						<div className="flex items-center space-x-2">
 							<div className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium flex items-center">
 								<Wallet className="mr-2 h-5 w-5" />

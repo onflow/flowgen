@@ -674,6 +674,8 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 						return {
 							success: true,
 							pixelId: existingPixel[0].nftId,
+							ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+							triggeringAiImageID: initialAiImageNftID,
 						};
 					}
 					// If NFT IDs don't match, this is a more complex situation.
@@ -718,6 +720,9 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 					`Pixel (${pixelX},${pixelY}) acquired by ${ownerId}, DB updated. NFT ID: ${result[0].nftId}`
 				);
 
+				// Background update is now handled by the frontend with progress updates
+				// Commenting out server-side trigger to prevent duplicates
+				/*
 				// Trigger background update immediately
 				try {
 					console.log(
@@ -772,8 +777,14 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 					console.error("Error triggering background update:", bgError);
 					// Don't fail the pixel purchase if background update fails
 				}
+				*/
 
-				return { success: true, pixelId: result[0].nftId };
+				return {
+					success: true,
+					pixelId: result[0].nftId,
+					ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+					triggeringAiImageID: initialAiImageNftID,
+				};
 			} catch (dbError: any) {
 				console.error(
 					`Database error after Flow transaction ${txId} (NFT ${nftIdOnChain}) was successful:`,
@@ -795,7 +806,12 @@ export async function trackNftPurchaseAndUpdateDb(data: {
 						console.log(
 							`Pixel (${pixelX},${pixelY}) with NFT ID ${nftIdOnChain} already exists in DB due to unique constraint, likely a retry. Data matches.`
 						);
-						return { success: true, pixelId: nftIdOnChain };
+						return {
+							success: true,
+							pixelId: nftIdOnChain,
+							ipfsImageCID: eventIpfsImageCID || ipfsImageCID,
+							triggeringAiImageID: initialAiImageNftID,
+						};
 					}
 					console.error(
 						`Unique constraint violation for pixel (${pixelX},${pixelY}), but current NFT ID ${nftIdOnChain} or owner ${ownerId} does not match DB record: ${JSON.stringify(

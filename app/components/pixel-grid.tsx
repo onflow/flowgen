@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PixelData } from "@/lib/pixel-types";
 import { useCurrentBackgroundInfo } from "../hooks/pixel-hooks";
 
@@ -9,6 +9,7 @@ type PixelGridProps = {
 	soldPercentage: number;
 	currentPrice: number;
 	selectedSpace: PixelData | null;
+	backgroundImageUrl?: string;
 };
 
 export default function PixelGrid({
@@ -18,8 +19,8 @@ export default function PixelGrid({
 	soldPercentage,
 	currentPrice,
 	selectedSpace,
+	backgroundImageUrl,
 }: PixelGridProps) {
-	const backgroundImage = useCurrentBackgroundInfo();
 	const handleCellClick = (cell: any) => {
 		console.log("handleCellClick", cell);
 		onCellClick(cell);
@@ -42,8 +43,8 @@ export default function PixelGrid({
 			<div
 				className="border border-gray-300 inline-block"
 				style={{
-					backgroundImage: backgroundImage?.imageUrl
-						? `url(${backgroundImage.imageUrl})`
+					backgroundImage: backgroundImageUrl
+						? `url(${backgroundImageUrl})`
 						: "none",
 					backgroundSize: "cover",
 					backgroundPosition: "center",

@@ -7,9 +7,11 @@ import PurchasePanel from "./purchase-panel";
 import { useCurrentFlowUser } from "@onflow/kit";
 import { PixelData, CanvasOverview, PixelOnChainData } from "@/lib/pixel-types";
 import {
+	getIpfsUrl,
 	useAllPixelData,
 	useCanvasOverview,
 	useCanvasSectionData,
+	useCurrentBackgroundInfo,
 } from "@/app/hooks/pixel-hooks";
 
 // Define CanvasSectionParams interface if not already imported from pixel-hooks
@@ -91,6 +93,12 @@ export default function AIPixelCanvas() {
 		error: sectionError,
 		refetch: refetchPixelData,
 	} = useCanvasSectionData(gridParams);
+	const {
+		data: backgroundData,
+		isLoading: isBackgroundLoading,
+		error: backgroundError,
+		refetch: refetchBackground,
+	} = useCurrentBackgroundInfo();
 
 	useEffect(() => {
 		if (gridParams) {
@@ -101,11 +109,20 @@ export default function AIPixelCanvas() {
 
 	const handlePurchaseSuccess = useCallback(async () => {
 		console.log("Purchase successful, refreshing canvas data...");
+
+		// Clear the selected space to allow new pixel selection
+		setSelectedSpace(null);
+
+		// Refresh canvas data
 		await fetchCanvasOverview();
 		if (gridParams) {
 			await refetchPixelData();
 			await refetchAllPixels();
 		}
+
+		// Refresh the background image to show the updated canvas
+		console.log("Refreshing background image...");
+		refetchBackground();
 	}, [fetchCanvasOverview, refetchPixelData, refetchAllPixels, gridParams]);
 
 	type PixelGridCell = {
@@ -159,6 +176,11 @@ export default function AIPixelCanvas() {
 							: 0
 					}
 					currentPrice={canvasOverview ? canvasOverview.currentPrice : 10}
+					backgroundImageUrl={
+						backgroundData?.imageHash
+							? getIpfsUrl(backgroundData.imageHash) ?? undefined
+							: undefined
+					}
 				/>
 
 				<div className="w-96 bg-gray-50 dark:bg-gray-800 p-6 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">

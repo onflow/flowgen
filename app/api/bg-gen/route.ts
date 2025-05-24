@@ -1,5 +1,6 @@
 import {
 	generateBackgroundPrompt,
+	generateBackgroundInsertionPrompt,
 	// generateStyledPrompt, // This seems unused, kept for now
 } from "@/lib/prompt-style";
 import { NextResponse } from "next/server";
@@ -17,19 +18,30 @@ const userPrompt =
 export async function POST(request: Request) {
 	try {
 		const body = await request.json();
-		const { backgroundImageCID, pixelImageCID, pixelX, pixelY } = body;
+		const { backgroundImageCID, pixelX, pixelY, aiPrompt } = body;
+
+		console.log(
+			`curl -X POST http://localhost:3000/api/bg-gen -H "Content-Type: application/json" -d '{"backgroundImageCID": "${backgroundImageCID}", "pixelX": "${pixelX}", "pixelY": "${pixelY}", "aiPrompt": "${
+				aiPrompt || ""
+			}"}'`
+		);
 
 		// Validate required parameters
-		if (
-			!backgroundImageCID ||
-			!pixelImageCID ||
-			pixelX === undefined ||
-			pixelY === undefined
-		) {
+		if (!backgroundImageCID || pixelX === undefined || pixelY === undefined) {
 			return NextResponse.json(
 				{
 					error:
-						"Missing required parameters: backgroundImageCID, pixelImageCID, pixelX, pixelY",
+						"Missing required parameters: backgroundImageCID, pixelX, pixelY",
+				},
+				{ status: 400 }
+			);
+		}
+
+		// Validate that we have either aiPrompt or the old pixelImageCID for backwards compatibility
+		if ((!aiPrompt || aiPrompt.trim() === "") && !body.pixelImageCID) {
+			return NextResponse.json(
+				{
+					error: "Either aiPrompt or pixelImageCID must be provided",
 				},
 				{ status: 400 }
 			);
@@ -49,31 +61,28 @@ export async function POST(request: Request) {
 		const baseUrl = currentUrl.origin; // e.g., http://localhost:3000 or https://yourdomain.com
 
 		const backgroundImageUrl = `https://${backgroundImageCID}.ipfs.w3s.link/`;
-		const pixelImageUrl = `https://${pixelImageCID}.ipfs.w3s.link/`; // Fetched but not directly used in OpenAI call yet
 		const maskImageUrl = `${baseUrl}/api/mask/${pX}/${pY}`;
 
 		console.log("maskImageUrl", maskImageUrl);
-		console.log("pixelImageUrl", pixelImageUrl);
 		console.log("backgroundImageUrl", backgroundImageUrl);
-		// Customize prompt based on style
-		const enhancedPrompt = generateBackgroundPrompt(userPrompt, pX, pY);
+
+		// Generate prompt based on whether we have aiPrompt (new way) or using old way
+		let enhancedPrompt: string;
+		if (aiPrompt && aiPrompt.trim() !== "") {
+			enhancedPrompt = generateBackgroundInsertionPrompt(aiPrompt, pX, pY);
+			console.log("Using new prompt-based approach:", enhancedPrompt);
+		} else {
+			throw new Error("No aiPrompt provided");
+		}
 
 		// Fetch image and mask data
 		const bgImageResponse = await fetch(backgroundImageUrl);
-		const pixelImageResponse = await fetch(pixelImageUrl); // Fetched, data stored in pixelImageFile
 		const maskResponse = await fetch(maskImageUrl);
 		console.log("maskResponse", maskResponse);
 
 		if (!bgImageResponse.ok) {
 			throw new Error(
 				`Failed to fetch background image from ${backgroundImageUrl}: ${bgImageResponse.status} ${bgImageResponse.statusText}`
-			);
-		}
-		if (!pixelImageResponse.ok) {
-			// If pixelImageCID is critical and its fetch fails, you might want to throw an error too.
-			// For now, just logging as its data isn't directly passed to openai.images.edit's 'image' param.
-			console.warn(
-				`Failed to fetch pixel image from ${pixelImageUrl}: ${pixelImageResponse.status} ${pixelImageResponse.statusText}`
 			);
 		}
 		if (!maskResponse.ok) {
@@ -84,7 +93,6 @@ export async function POST(request: Request) {
 
 		const imageFile = await bgImageResponse.blob();
 		const maskFile = await maskResponse.blob();
-		const pixelImageBlob = await pixelImageResponse.blob();
 
 		// Duplicate background image and apply mask's alpha channel
 		const [bgBuf, maskBuf] = await Promise.all([
@@ -112,28 +120,87 @@ export async function POST(request: Request) {
 			type: "image/png",
 		});
 
-		const pixelImageFile = new File([pixelImageBlob], "pixel.png", {
-			type: "image/png",
-		});
+		// For the new prompt-based approach, we don't need a second image
+		// We use the background image as both the base and the reference
+		let openAIResponse;
+		if (aiPrompt) {
+			console.log("Using NEW prompt-based approach");
+			console.log("Enhanced prompt:", enhancedPrompt);
+			console.log("Making OpenAI API call...");
 
-		const response = await openai.images.edit({
-			model: "gpt-image-1",
-			image: [backgroundFile, pixelImageFile],
-			mask: maskFileWithAlpha,
-			prompt: enhancedPrompt,
-			n: 1,
-			size: "1024x1024",
-		});
+			try {
+				// New approach: use inpainting with just background and mask
+				openAIResponse = await openai.images.edit({
+					model: "gpt-image-1",
+					image: backgroundFile,
+					mask: maskFileWithAlpha,
+					prompt: enhancedPrompt,
+					n: 1,
+					size: "1024x1024",
+				});
 
-		console.log("OpenAI API response:", response);
+				console.log("OpenAI API call completed successfully");
+			} catch (openaiError) {
+				console.error("OpenAI API call failed:", openaiError);
+				throw openaiError;
+			}
+		} else {
+			console.log("Using LEGACY approach");
+			console.log("Enhanced prompt:", enhancedPrompt);
 
-		if (response.data && response.data[0].url) {
-			return NextResponse.json({ imageUrl: response.data[0].url });
-		} else if (response.data && response.data[0].b64_json) {
+			// Legacy approach: needs pixelImageCID but still uses the same OpenAI API
+			// We'll log that we're fetching the pixel image but won't use it in OpenAI call
+			const pixelImageUrl = `https://${body.pixelImageCID}.ipfs.w3s.link/`;
+			const pixelImageResponse = await fetch(pixelImageUrl);
+
+			if (!pixelImageResponse.ok) {
+				console.warn(
+					`Failed to fetch pixel image from ${pixelImageUrl}: ${pixelImageResponse.status} ${pixelImageResponse.statusText}`
+				);
+			}
+
+			console.log("Legacy approach: fetched pixel image but using inpainting");
+			console.log("Making OpenAI API call...");
+
+			try {
+				// Use the same OpenAI inpainting API for backwards compatibility
+				openAIResponse = await openai.images.edit({
+					image: backgroundFile,
+					mask: maskFileWithAlpha,
+					prompt: enhancedPrompt,
+					n: 1,
+					size: "1024x1024",
+				});
+
+				console.log("OpenAI API call completed successfully");
+			} catch (openaiError) {
+				console.error("OpenAI API call failed:", openaiError);
+				throw openaiError;
+			}
+		}
+
+		console.log(
+			"OpenAI API response:",
+			JSON.stringify(openAIResponse, null, 2)
+		);
+		console.log("OpenAI response type:", typeof openAIResponse);
+		console.log("OpenAI response data:", openAIResponse?.data);
+
+		if (openAIResponse?.data && openAIResponse.data[0]?.url) {
+			console.log("Returning URL:", openAIResponse.data[0].url);
+			return NextResponse.json({ imageUrl: openAIResponse.data[0].url });
+		} else if (openAIResponse?.data && openAIResponse.data[0]?.b64_json) {
+			console.log("Returning base64 data");
 			return NextResponse.json({
-				imageUrl: `data:image/png;base64,${response.data[0].b64_json}`,
+				imageUrl: `data:image/png;base64,${openAIResponse.data[0].b64_json}`,
 			});
 		} else {
+			console.error("OpenAI response structure unexpected:", {
+				hasResponse: !!openAIResponse,
+				hasData: !!openAIResponse?.data,
+				dataLength: openAIResponse?.data?.length,
+				firstItem: openAIResponse?.data?.[0],
+			});
 			return NextResponse.json(
 				{ error: "No image URL returned from OpenAI" },
 				{ status: 500 }
@@ -149,17 +216,16 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
 	const { searchParams } = new URL(request.url);
-
 	const backgroundImageCID = searchParams.get("backgroundImageCID");
 	const pixelImageCID = searchParams.get("pixelImageCID");
+	const aiPrompt = searchParams.get("aiPrompt");
 	const pixelXStr = searchParams.get("pixelX");
 	const pixelYStr = searchParams.get("pixelY");
-
-	if (!backgroundImageCID || !pixelImageCID || !pixelXStr || !pixelYStr) {
+	if (!backgroundImageCID || !pixelXStr || !pixelYStr) {
 		return NextResponse.json(
 			{
 				error:
-					"Missing one or more required query parameters: backgroundImageCID, pixelImageCID, pixelX, pixelY",
+					"Missing one or more required query parameters: backgroundImageCID, pixelX, pixelY",
 			},
 			{ status: 400 }
 		);
@@ -177,11 +243,10 @@ export async function GET(request: Request) {
 
 	const payload = {
 		backgroundImageCID,
-		pixelImageCID,
 		pixelX,
 		pixelY,
+		aiPrompt,
 	};
-
 	// Construct a new Request object to pass to the POST handler
 	const postRequestUrl = new URL(request.url); // Base URL for context
 	postRequestUrl.pathname = "/api/bg-gen"; // Ensure it points to the correct POST endpoint logically

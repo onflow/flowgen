@@ -8,6 +8,8 @@ interface BackgroundUpdateParams {
 	y: number;
 	ipfsImageCID: string;
 	triggeringAiImageID?: number;
+	aiPrompt?: string;
+	style?: string;
 }
 
 interface ProgressUpdate {
@@ -186,6 +188,8 @@ export function usePixelEventListener() {
 					y: event.data.y,
 					ipfsImageCID: event.data.ipfsImageCID,
 					triggeringAiImageID: event.data.initialAiImageNftID,
+					aiPrompt: event.data.aiPrompt,
+					// style: undefined, // Style info not available in Flow events yet
 				});
 			} catch (error) {
 				console.error("Failed to handle PixelMinted event:", error);
@@ -205,6 +209,8 @@ export function usePixelEventListener() {
 					y: event.data.y,
 					ipfsImageCID: event.data.ipfsImageCID,
 					triggeringAiImageID: event.data.newAiImageNftID,
+					aiPrompt: event.data.aiPrompt,
+					// style: undefined, // Style info not available in Flow events yet
 				});
 			} catch (error) {
 				console.error("Failed to handle PixelImageUpdated event:", error);
@@ -232,6 +238,8 @@ export function usePixelEventListenerStream() {
 					y: event.data.y,
 					ipfsImageCID: event.data.ipfsImageCID,
 					triggeringAiImageID: event.data.initialAiImageNftID,
+					aiPrompt: event.data.aiPrompt,
+					// style: undefined, // Style info not available in Flow events yet
 				});
 			} catch (error) {
 				console.error("Failed to handle PixelMinted event:", error);
@@ -251,6 +259,8 @@ export function usePixelEventListenerStream() {
 					y: event.data.y,
 					ipfsImageCID: event.data.ipfsImageCID,
 					triggeringAiImageID: event.data.newAiImageNftID,
+					aiPrompt: event.data.aiPrompt,
+					// style: undefined, // Style info not available in Flow events yet
 				});
 			} catch (error) {
 				console.error("Failed to handle PixelImageUpdated event:", error);

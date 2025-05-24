@@ -75,3 +75,27 @@ export function generateBackgroundPrompt(
 ): string {
 	return `Can you place and squash the opaque parts of the second image onto the first image by using only the masked of the background area described by the 3rd image? The new element being placed should be incorporated into the backgrond at that spot as if it were part of the background. Please leave the rest of the background as is. The placed element should not take up more space than 64x64 pixels and should be placed at the coordinates ${pixelX},${pixelY}.`;
 }
+
+export function generateBackgroundInsertionPrompt(
+	originalAiPrompt: string,
+	pixelX?: number,
+	pixelY?: number
+): string {
+	// The originalAiPrompt already contains style information (e.g., "A pixel art version of A little car, in retro 16-bit style, super cute and blocky.")
+	// So we just need to create an insertion prompt using this already-styled prompt
+	let insertPrompt = `Insert a tiny, miniature ${originalAiPrompt
+		.slice(0, originalAiPrompt.length - 2)
+		.toLowerCase()}`;
+
+	// Add positioning context
+	insertPrompt += ` into the masked area of the background. The inserted element should blend naturally with the background as if it belongs there, maintaining the overall scene's aesthetic. Keep the inserted element small and proportional to fit within a 64x64 pixel area in the masked area`;
+
+	// Add coordinates if provided
+	if (pixelX !== undefined && pixelY !== undefined) {
+		insertPrompt += ` Place it precisely at coordinates (${pixelX * 64}, ${
+			pixelY * 64
+		}).`;
+	}
+
+	return insertPrompt;
+}

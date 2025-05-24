@@ -3,6 +3,7 @@ import { fcl } from "@/lib/fcl-server-config";
 import { db } from "@/db"; // Ensure this path is correct for your Drizzle db instance
 import { eventPollingStatus } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import GetAiImageNftDetails from "@/cadence/scripts/GetAiImageNftDetails.cdc";
 
 // --- Configuration ---
 const NEXT_PUBLIC_FLOW_NETWORK =
@@ -45,6 +46,31 @@ const MAX_BLOCK_RANGE = 400; // Number of blocks to query at a time, adjust as n
 // const CRON_SECRET = process.env.CRON_SECRET;
 
 // --- Helper Functions (Duplicated for now, consider refactoring to a shared lib if they evolve) ---
+
+async function getAiImageDetails(ownerAddress: string, nftID: number) {
+	try {
+		console.log(
+			`DEBUG - Querying AI image details: owner=${ownerAddress}, nftID=${nftID}`
+		);
+		const script = GetAiImageNftDetails;
+		const result = await fcl.query({
+			cadence: script,
+			args: (arg: any, t: any) => [
+				arg(ownerAddress, t.Address),
+				arg(nftID, t.UInt64),
+			],
+		});
+		console.log(
+			`DEBUG - AI image query result:`,
+			JSON.stringify(result, null, 2)
+		);
+		return result;
+	} catch (error) {
+		console.error(`Failed to fetch AI image details for NFT ${nftID}:`, error);
+		console.error("Error details:", error);
+		return null;
+	}
+}
 async function getEventPollingStatus(
 	eventName: string
 ): Promise<{ lastPolledBlock: number; seeded: boolean }> {
@@ -189,21 +215,24 @@ export async function GET(request: Request) {
 
 							// Process PixelMinted and PixelImageUpdated events
 							if (event.type.endsWith("PixelMinted")) {
-								const {
-									id,
-									x,
-									y,
-									initialAiImageNftID,
-									artworkName,
-									artworkDescription,
-									aiPrompt,
-									ipfsImageCID, // This is the image hash you need!
-									imageMediaType,
-									paymentAmount,
-								} = event.data;
+								const { id, x, y, initialAiImageNftID } = event.data;
 
 								console.log(
-									`PixelMinted Event - Pixel ID: ${id}, Position: (${x}, ${y}), Image Hash: ${ipfsImageCID}`
+									"DEBUG - Event data keys:",
+									Object.keys(event.data)
+								);
+								console.log(
+									"DEBUG - Raw event data:",
+									JSON.stringify(event.data, null, 2)
+								);
+
+								console.log(
+									`PixelMinted Event - Pixel ID: ${id}, Position: (${x}, ${y}), AI Image NFT ID: ${initialAiImageNftID}`
+								);
+
+								// The background update API will fetch the AI prompt from the NFT
+								console.log(
+									`DEBUG - Triggering background update with triggeringAiImageID: ${initialAiImageNftID}`
 								);
 
 								// Trigger background update
@@ -223,7 +252,6 @@ export async function GET(request: Request) {
 												pixelId: id,
 												x: x,
 												y: y,
-												ipfsImageCID: ipfsImageCID,
 												triggeringAiImageID: initialAiImageNftID,
 											}),
 										}
@@ -255,20 +283,15 @@ export async function GET(request: Request) {
 								//     ownerId: event.authorizers?.[0] // or extract from event
 								// });
 							} else if (event.type.endsWith("PixelImageUpdated")) {
-								const {
-									pixelId,
-									newAiImageNftID,
-									x,
-									y,
-									artworkName,
-									artworkDescription,
-									aiPrompt,
-									ipfsImageCID, // Updated image hash
-									imageMediaType,
-								} = event.data;
+								const { pixelId, newAiImageNftID, x, y } = event.data;
 
 								console.log(
-									`PixelImageUpdated Event - Pixel ID: ${pixelId}, Position: (${x}, ${y}), New Image Hash: ${ipfsImageCID}`
+									`PixelImageUpdated Event - Pixel ID: ${pixelId}, Position: (${x}, ${y}), New AI Image NFT ID: ${newAiImageNftID}`
+								);
+
+								// The background update API will fetch the AI prompt from the NFT
+								console.log(
+									`DEBUG - Triggering background update for PixelImageUpdated with triggeringAiImageID: ${newAiImageNftID}`
 								);
 
 								// Trigger background update
@@ -288,7 +311,6 @@ export async function GET(request: Request) {
 												pixelId: pixelId,
 												x: x,
 												y: y,
-												ipfsImageCID: ipfsImageCID,
 												triggeringAiImageID: newAiImageNftID,
 											}),
 										}

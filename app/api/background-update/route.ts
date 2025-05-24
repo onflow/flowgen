@@ -7,6 +7,32 @@ import { createIpfsCidFromImageUrl } from "@/app/actions/create-ipfs-cid";
 import { serverAuthorization } from "@/lib/server-authz";
 import UpdateCanvasBackground from "@/cadence/transactions/canvas/UpdateCanvasBackground.cdc";
 import GetLatestBackgroundInfo from "@/cadence/scripts/GetLatestBackgroundInfo.cdc";
+import GetAiImageNftDetails from "@/cadence/scripts/GetAiImageNftDetails.cdc";
+
+async function getAiImageDetails(ownerAddress: string, nftID: number) {
+	try {
+		console.log(
+			`DEBUG - Querying AI image details: owner=${ownerAddress}, nftID=${nftID}`
+		);
+		const script = GetAiImageNftDetails;
+		const result = await fcl.query({
+			cadence: script,
+			args: (arg: any, t: any) => [
+				arg(ownerAddress, t.Address),
+				arg(nftID, t.UInt64),
+			],
+		});
+		console.log(
+			`DEBUG - AI image query result:`,
+			JSON.stringify(result, null, 2)
+		);
+		return result;
+	} catch (error) {
+		console.error(`Failed to fetch AI image details for NFT ${nftID}:`, error);
+		console.error("Error details:", error);
+		return null;
+	}
+}
 
 interface BackgroundUpdateRequest {
 	eventType: "PixelMinted" | "PixelImageUpdated";
@@ -16,6 +42,7 @@ interface BackgroundUpdateRequest {
 	y: number;
 	ipfsImageCID: string;
 	triggeringAiImageID?: number;
+	// aiPrompt will be fetched from the AI image NFT on-chain
 }
 
 async function cleanupExpiredLocks() {
@@ -117,9 +144,9 @@ async function getCurrentBackgroundInfo() {
 
 async function generateNewBackground(
 	currentBackgroundCID: string,
-	pixelImageCID: string,
 	x: number,
-	y: number
+	y: number,
+	aiPrompt?: string
 ) {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 	const response = await fetch(`${baseUrl}/api/bg-gen`, {
@@ -129,9 +156,9 @@ async function generateNewBackground(
 		},
 		body: JSON.stringify({
 			backgroundImageCID: currentBackgroundCID,
-			pixelImageCID: pixelImageCID,
 			pixelX: x,
 			pixelY: y,
+			aiPrompt: aiPrompt,
 		}),
 	});
 
@@ -198,8 +225,7 @@ export async function POST(request: Request) {
 			!transactionId ||
 			!pixelId ||
 			x === undefined ||
-			y === undefined ||
-			!ipfsImageCID
+			y === undefined
 		) {
 			return NextResponse.json(
 				{ error: "Missing required fields" },
@@ -236,6 +262,79 @@ export async function POST(request: Request) {
 			`Processing background update for pixel ${pixelId} at (${x}, ${y})`
 		);
 
+		// Extract AI prompt from the triggering AI image NFT
+		let aiPrompt = "";
+		if (triggeringAiImageID) {
+			// Get the owner address from the transaction
+			let ownerAddress = null;
+			try {
+				console.log(
+					`DEBUG - Fetching transaction details for ${transactionId}`
+				);
+				const txDetails = await fcl.tx(transactionId).onceSealed();
+				console.log(
+					"DEBUG - All transaction events:",
+					JSON.stringify(
+						txDetails.events.map((e) => ({
+							type: e.type,
+							data: e.data,
+						})),
+						null,
+						2
+					)
+				);
+
+				// Look for AI image deposit event specifically
+				const aiImageDepositEvent = txDetails.events.find(
+					(e) =>
+						e.type.includes("NonFungibleToken.Deposit") &&
+						(e.type.includes("FlowGenAiImage") ||
+							e.data.id == triggeringAiImageID)
+				);
+
+				// Fallback to any deposit event
+				const anyDepositEvent = txDetails.events.find((e) =>
+					e.type.includes("NonFungibleToken.Deposit")
+				);
+
+				ownerAddress =
+					aiImageDepositEvent?.data?.to || anyDepositEvent?.data?.to;
+				console.log("DEBUG - AI Image Deposit Event:", aiImageDepositEvent);
+				console.log("DEBUG - Any Deposit Event:", anyDepositEvent);
+				console.log("DEBUG - Owner address:", ownerAddress);
+			} catch (error) {
+				console.error("Failed to get transaction details:", error);
+			}
+
+			// Fetch AI image details to get the prompt
+			if (ownerAddress && triggeringAiImageID) {
+				console.log(
+					`Fetching AI image details for NFT ${triggeringAiImageID} owned by ${ownerAddress}`
+				);
+				const aiImageDetails = await getAiImageDetails(
+					ownerAddress,
+					triggeringAiImageID
+				);
+
+				if (aiImageDetails) {
+					aiPrompt = aiImageDetails.aiPrompt || "";
+					console.log("DEBUG - Fetched aiPrompt:", aiPrompt);
+				} else {
+					console.warn("Failed to fetch AI image details");
+				}
+			} else {
+				console.warn("Missing owner address or AI image NFT ID");
+			}
+		} else {
+			console.warn("No triggeringAiImageID provided");
+		}
+
+		if (!aiPrompt || aiPrompt.trim() === "") {
+			throw new Error(
+				"Could not retrieve AI prompt from NFT. triggeringAiImageID is required."
+			);
+		}
+
 		// Get current background info
 		const currentBackground = await getCurrentBackgroundInfo();
 		if (!currentBackground) {
@@ -243,13 +342,14 @@ export async function POST(request: Request) {
 		}
 
 		console.log(`Current background CID: ${currentBackground.imageHash}`);
+		console.log(`Generating background with: aiPrompt="${aiPrompt}"`);
 
 		// Generate new background image
 		const newImageUrl = await generateNewBackground(
 			currentBackground.imageHash,
-			ipfsImageCID,
 			x,
-			y
+			y,
+			aiPrompt
 		);
 
 		console.log("New background generated:", newImageUrl);

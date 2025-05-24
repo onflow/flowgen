@@ -352,8 +352,6 @@ export async function POST(request: Request) {
 			aiPrompt
 		);
 
-		console.log("New background generated:", newImageUrl);
-
 		// Upload to IPFS
 		const ipfsResult = await createIpfsCidFromImageUrl(newImageUrl);
 		const newImageCID = ipfsResult.cid;

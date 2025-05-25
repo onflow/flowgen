@@ -167,8 +167,7 @@ describe("Image Stitching Logic", () => {
 			const maskBuffer = await createStitchingMask();
 			const maskImage = sharp(maskBuffer);
 
-			// For debugging, save the mask to a file
-			// await maskImage.clone().toFile('debug_mask.png');
+			// await maskImage.clone().toFile('debug_mask_larger_hole.png'); // For debugging
 
 			const { data, info } = await maskImage
 				.raw()
@@ -182,31 +181,37 @@ describe("Image Stitching Logic", () => {
 			const centerX = info.width / 2;
 			const centerY = info.height / 2;
 
-			const r1_transparent_px = CELL_SIZE / 2; // 32px
-			const r2_opaque_px = (3 * CELL_SIZE) / 2; // 96px
+			// r1_transparent_px is now CELL_SIZE (64px)
+			const r1_transparent_px_test = CELL_SIZE;
+			const r2_opaque_px_test = info.width / 2; // 128px
 
 			// 1. Center of the transparent hole (distance 0 from center)
-			expect(getPixelAlpha(centerX, centerY)).toBeLessThan(10); // Should be fully transparent
+			expect(getPixelAlpha(centerX, centerY)).toBeLessThan(10);
 
-			// 2. Just inside the transparent radius r1 (e.g., distance 30px from center)
+			// 2. Just inside the new larger transparent radius r1 (e.g., distance 62px from center)
 			expect(
-				getPixelAlpha(centerX + r1_transparent_px - 2, centerY)
+				getPixelAlpha(centerX + r1_transparent_px_test - 2, centerY)
 			).toBeLessThan(10);
 
-			// 3. Mid-point of the gradient (distance (r1+r2)/2 = (32+96)/2 = 64px from center)
-			const midGradientRadius = (r1_transparent_px + r2_opaque_px) / 2;
+			// 3. Mid-point of the new gradient (distance (64+128)/2 = 96px from center)
+			const midGradientRadius =
+				(r1_transparent_px_test + r2_opaque_px_test) / 2; // (64+128)/2 = 96
 			const midGradientAlpha = getPixelAlpha(
 				centerX + Math.floor(midGradientRadius),
 				centerY
 			);
-			expect(midGradientAlpha).toBeGreaterThan(100); // Expect significant opacity
-			expect(midGradientAlpha).toBeLessThan(200); // But not fully opaque
+			expect(midGradientAlpha).toBeGreaterThan(100); // Expect significant opacity (around 50% through gradient)
+			expect(midGradientAlpha).toBeLessThan(150); // Should be around 127-128 if perfectly linear
 
-			// 4. Just outside the opaque radius r2 (e.g., distance 98px from center)
-			expect(getPixelAlpha(centerX + r2_opaque_px + 2, centerY)).toBe(255);
+			// 4. A point very close to the edge of the mask (e.g., distance 126px from center)
+			expect(
+				getPixelAlpha(centerX + r2_opaque_px_test - 2, centerY)
+			).toBeGreaterThan(240);
 
-			// 5. Actual corner of the mask (should be fully opaque)
-			expect(getPixelAlpha(5, 5)).toBe(255);
+			// 5. Actual corner of the mask
+			expect(
+				getPixelAlpha(info.width - 1, info.height - 1)
+			).toBeGreaterThanOrEqual(250);
 		});
 	});
 

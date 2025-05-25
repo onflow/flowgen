@@ -291,3 +291,7 @@ export async function GET(request: Request) {
 		);
 	}
 }
+
+// To test try this
+
+// http://localhost:3000/api/bg-gen?backgroundImageCID=bafybeidgxttsoguwrg3m3pkbrhvtj6pe63ym2uc4hwun5rngnk7i7we65q&pixelImageCID=bafybeigne2e7462zi6xqghcgxkgyl6rvcuwe3dxxqpcrgbotx26s3rmxge&pixelX=7&pixelY=7

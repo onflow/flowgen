@@ -81,96 +81,59 @@ export function calculateExtractionBounds(
 }
 
 /**
- * Create a gradient mask for seamless stitching
- * Center block gets full transparency (hole), surrounding blocks get gradient opacity,
- * and the entire 3x3 pattern is centered in the 256x256 mask.
+ * Create a smooth, circular gradient mask for seamless stitching.
+ * - Fully transparent circular hole in the center (radius CELL_SIZE / 2).
+ * - Smooth gradient to fully opaque at radius (3 * CELL_SIZE / 2).
+ * - Fully opaque beyond that radius to the mask edges.
  */
 export async function createStitchingMask(): Promise<Buffer> {
-	// Start with a fully opaque white canvas
-	const canvas = sharp({
+	const baseCanvas = sharp({
 		create: {
-			width: EXTRACTION_SIZE,
-			height: EXTRACTION_SIZE,
+			width: EXTRACTION_SIZE, // 256
+			height: EXTRACTION_SIZE, // 256
 			channels: 4,
-			background: { r: 255, g: 255, b: 255, alpha: 1.0 }, // Start fully opaque
+			background: { r: 255, g: 255, b: 255, alpha: 1.0 }, // Start fully opaque white
 		},
 	});
 
-	const layers = [];
+	const gradientCenterX = EXTRACTION_SIZE / 2; // 128px
+	const gradientCenterY = EXTRACTION_SIZE / 2; // 128px
+	const gradientRadius = EXTRACTION_SIZE / 2; // 128px for the r attribute of radialGradient
 
-	const centerOffset = (EXTRACTION_SIZE - CELL_SIZE) / 2; // Should be (256-64)/2 = 96
+	const r1_transparent_px = CELL_SIZE / 2; // 32px
+	const r2_opaque_px = (3 * CELL_SIZE) / 2; // 96px
 
-	// Center block - fully transparent (cut a hole)
-	const centerHole = await sharp({
-		create: {
-			width: CELL_SIZE,
-			height: CELL_SIZE,
-			channels: 4,
-			background: { r: 0, g: 0, b: 0, alpha: 1.0 }, // Black for dest-out
-		},
-	})
-		.png()
-		.toBuffer();
+	// SVG radialGradient offsets are percentages of the gradientRadius
+	const r1_offset_percent = (r1_transparent_px / gradientRadius) * 100; // 32/128 = 25%
+	const r2_offset_percent = (r2_opaque_px / gradientRadius) * 100; // 96/128 = 75%
 
-	layers.push({
-		input: centerHole,
-		left: centerOffset, // Centered position: 96
-		top: centerOffset, // Centered position: 96
-		blend: "dest-out" as const, // Cut a hole (make transparent)
-	});
-
-	// Calculate the offset for the 3x3 grid of blocks to be centered
-	const grid3x3Offset = (EXTRACTION_SIZE - 3 * CELL_SIZE) / 2; // (256 - 192) / 2 = 32
-
-	// Adjacent blocks (ring 1) - gradient holes that fade outward
-	// These are indices within a 3x3 grid (0,0 top-left, 1,1 center, 2,2 bottom-right)
-	const ring1BlockCoordinates = [
-		// Exclude center block (1,1) which is the main hole
-		{ x: 0, y: 0 },
-		{ x: 1, y: 0 },
-		{ x: 2, y: 0 },
-		{ x: 0, y: 1 },
-		{ x: 2, y: 1 },
-		{ x: 0, y: 2 },
-		{ x: 1, y: 2 },
-		{ x: 2, y: 2 },
-	];
-
-	for (const block of ring1BlockCoordinates) {
-		// Create inverted gradient - starts transparent (center of block) and fades to opaque (edges of block)
-		const gradientHole = await createInvertedGradientBlock(0.8, 0.2); // More transparent toward center of this block
-		layers.push({
-			input: gradientHole,
-			left: grid3x3Offset + block.x * CELL_SIZE,
-			top: grid3x3Offset + block.y * CELL_SIZE,
-			blend: "dest-out" as const, // Cut gradient holes
-		});
-	}
-
-	return canvas.composite(layers).png().toBuffer();
-}
-
-/**
- * Create an inverted gradient block that's more transparent at center, more opaque at edges
- */
-async function createInvertedGradientBlock(
-	centerOpacity: number,
-	edgeOpacity: number
-): Promise<Buffer> {
-	// Create a radial gradient using SVG - inverted for dest-out usage
-	const svgGradient = `
-		<svg width="${CELL_SIZE}" height="${CELL_SIZE}" xmlns="http://www.w3.org/2000/svg">
+	const svgCutoutShape = `
+		<svg width="${EXTRACTION_SIZE}" height="${EXTRACTION_SIZE}" xmlns="http://www.w3.org/2000/svg">
 			<defs>
-				<radialGradient id="grad" cx="50%" cy="50%" r="70%">
-					<stop offset="0%" style="stop-color:black;stop-opacity:${centerOpacity}" />
-					<stop offset="100%" style="stop-color:black;stop-opacity:${edgeOpacity}" />
+				<radialGradient id="smoothCircularHole" cx="${gradientCenterX}px" cy="${gradientCenterY}px" r="${gradientRadius}px" gradientUnits="userSpaceOnUse">
+					<stop offset="0%"                         style="stop-color:black; stop-opacity:1;" />
+					<stop offset="${r1_offset_percent}%"      style="stop-color:black; stop-opacity:1;" /> 
+					<stop offset="${r2_offset_percent}%"      style="stop-color:black; stop-opacity:0;" />
+					<stop offset="100%"                        style="stop-color:black; stop-opacity:0;" />
 				</radialGradient>
 			</defs>
-			<rect width="100%" height="100%" fill="url(#grad)" />
+			<rect x="0" y="0" width="${EXTRACTION_SIZE}" height="${EXTRACTION_SIZE}" fill="url(#smoothCircularHole)" />
 		</svg>
 	`;
 
-	return sharp(Buffer.from(svgGradient)).png().toBuffer();
+	const cutoutShapeBuffer = await sharp(Buffer.from(svgCutoutShape))
+		.png()
+		.toBuffer();
+
+	return baseCanvas
+		.composite([
+			{
+				input: cutoutShapeBuffer,
+				blend: "dest-out",
+			},
+		])
+		.png()
+		.toBuffer();
 }
 
 /**
@@ -202,35 +165,56 @@ export async function extractRegion(
  */
 export async function compositeResult(
 	originalBackground: Buffer,
-	generatedRegion: Buffer,
+	generatedRegion: Buffer, // AI's output, typically 1024x1024, new pixel already inpainted
 	pixelX: number,
 	pixelY: number,
-	stitchingMask: Buffer
+	stitchingMask: Buffer // Mask with transparent center, opaque/gradient edges (256x256)
 ): Promise<Buffer> {
 	const bounds = calculateExtractionBounds(pixelX, pixelY);
 
-	// OpenAI returns 1024x1024, but we need to resize it back to our extraction size (256x256)
 	const resizedGenerated = await sharp(generatedRegion)
 		.resize(EXTRACTION_SIZE, EXTRACTION_SIZE, { fit: "fill" })
+		.ensureAlpha() // Ensure it has an alpha channel
+		.toBuffer();
+
+	// Create the mask for blending resizedGenerated onto originalBackground:
+	// Opaque center (to show all of new pixel area), gradient transparent edges.
+	// This is an inverted version of stitchingMask.
+	const blendingMask = await sharp(stitchingMask)
+		.negate({ alpha: false }) // Invert colors (transparent black -> white, opaque white -> black)
+		// The alpha of stitchingMask is what we care about for its shape.
+		// After negate, areas that were transparent in stitchingMask (alpha 0, color black)
+		// become white (color) but retain alpha 0 from original if not careful.
+		// We need to ensure the final blendingMask's alpha channel is what drives the blend.
+		// Let's re-evaluate: Sharp's .composite uses the alpha of the INPUT image when blend is 'over'.
+		// So, we need to apply an inverted alpha to resizedGenerated.
+		.toBuffer(); // This buffer is now (opaque center, transparent gradient edges) if we interpret its color as alpha
+
+	// We need resizedGenerated to have an alpha channel that is opaque in the center
+	// and has gradient transparency at the edges.
+	// This alpha shape comes from inverting the alpha of stitchingMask.
+
+	const invertedAlphaForBlending = await sharp(stitchingMask)
+		.ensureAlpha()
+		.raw()
+		.toBuffer({ resolveWithObject: true })
+		.then(({ data, info }) => {
+			for (let i = 3; i < data.length; i += 4) {
+				data[i] = 255 - data[i]; // Invert alpha
+			}
+			return sharp(data, { raw: info }).png().toBuffer();
+		});
+
+	// Combine RGB of AI output with this new inverted alpha channel.
+	const finalInputForCompositing = await sharp(resizedGenerated)
+		.joinChannel(invertedAlphaForBlending)
 		.png()
 		.toBuffer();
 
-	// First, create the masked generated region
-	const maskedGeneration = await sharp(resizedGenerated)
-		.composite([
-			{
-				input: stitchingMask,
-				blend: "dest-in", // Use mask as alpha channel
-			},
-		])
-		.png()
-		.toBuffer();
-
-	// Then composite onto the original background
 	return sharp(originalBackground)
 		.composite([
 			{
-				input: maskedGeneration,
+				input: finalInputForCompositing, // This now has the correct alpha for blending
 				left: bounds.startX,
 				top: bounds.startY,
 				blend: "over",

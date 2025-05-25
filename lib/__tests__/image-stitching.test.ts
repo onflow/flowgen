@@ -163,43 +163,50 @@ describe("Image Stitching Logic", () => {
 			expect(metadata.channels).toBe(4); // RGBA
 		});
 
-		it("should have transparent center and opaque edges", async () => {
+		it("should have transparent center and smooth circular gradient to opaque edges", async () => {
 			const maskBuffer = await createStitchingMask();
 			const maskImage = sharp(maskBuffer);
 
-			// Extract pixel data
-			const { data } = await maskImage
+			// For debugging, save the mask to a file
+			// await maskImage.clone().toFile('debug_mask.png');
+
+			const { data, info } = await maskImage
 				.raw()
 				.toBuffer({ resolveWithObject: true });
 
-			// Check center of the main hole (96,96) which should be fully transparent
-			const mainHoleCenterX = (EXTRACTION_SIZE - CELL_SIZE) / 2 + CELL_SIZE / 2; // 96 + 32 = 128
-			const mainHoleCenterY = (EXTRACTION_SIZE - CELL_SIZE) / 2 + CELL_SIZE / 2; // 96 + 32 = 128
-			const mainHoleIndex =
-				(mainHoleCenterY * EXTRACTION_SIZE + mainHoleCenterX) * 4;
-			const mainHoleAlpha = data[mainHoleIndex + 3];
+			const getPixelAlpha = (x: number, y: number) => {
+				if (x < 0 || x >= info.width || y < 0 || y >= info.height) return 255;
+				return data[(y * info.width + x) * info.channels + 3];
+			};
 
-			// Check a pixel in the gradient area (e.g., center of the top-middle gradient block)
-			// This block is at (grid3x3Offset + 1*CELL_SIZE, grid3x3Offset + 0*CELL_SIZE)
-			// So its top-left is (32+64, 32) = (96, 32). Its center is (96+32, 32+32) = (128, 64)
-			const gradientBlockCenterX =
-				(EXTRACTION_SIZE - 3 * CELL_SIZE) / 2 + CELL_SIZE + CELL_SIZE / 2; // 32 + 64 + 32 = 128
-			const gradientBlockCenterY =
-				(EXTRACTION_SIZE - 3 * CELL_SIZE) / 2 + CELL_SIZE / 2; // 32 + 32 = 64
-			const gradientIndex =
-				(gradientBlockCenterY * EXTRACTION_SIZE + gradientBlockCenterX) * 4;
-			const gradientAlpha = data[gradientIndex + 3];
+			const centerX = info.width / 2;
+			const centerY = info.height / 2;
 
-			// Check an actual corner pixel of the 256x256 mask (should be fully opaque)
-			const cornerX = 5; // Very close to actual corner
-			const cornerY = 5; // Very close to actual corner
-			const cornerIndex = (cornerY * EXTRACTION_SIZE + cornerX) * 4;
-			const cornerAlpha = data[cornerIndex + 3];
+			const r1_transparent_px = CELL_SIZE / 2; // 32px
+			const r2_opaque_px = (3 * CELL_SIZE) / 2; // 96px
 
-			expect(mainHoleAlpha).toBeLessThan(10); // Center of main hole should be very transparent (almost 0)
-			expect(gradientAlpha).toBeGreaterThan(10); // Gradient area should have some opacity
-			expect(gradientAlpha).toBeLessThan(245); // And not be fully opaque
-			expect(cornerAlpha).toBe(255); // Actual corners of the mask should be fully opaque
+			// 1. Center of the transparent hole (distance 0 from center)
+			expect(getPixelAlpha(centerX, centerY)).toBeLessThan(10); // Should be fully transparent
+
+			// 2. Just inside the transparent radius r1 (e.g., distance 30px from center)
+			expect(
+				getPixelAlpha(centerX + r1_transparent_px - 2, centerY)
+			).toBeLessThan(10);
+
+			// 3. Mid-point of the gradient (distance (r1+r2)/2 = (32+96)/2 = 64px from center)
+			const midGradientRadius = (r1_transparent_px + r2_opaque_px) / 2;
+			const midGradientAlpha = getPixelAlpha(
+				centerX + Math.floor(midGradientRadius),
+				centerY
+			);
+			expect(midGradientAlpha).toBeGreaterThan(100); // Expect significant opacity
+			expect(midGradientAlpha).toBeLessThan(200); // But not fully opaque
+
+			// 4. Just outside the opaque radius r2 (e.g., distance 98px from center)
+			expect(getPixelAlpha(centerX + r2_opaque_px + 2, centerY)).toBe(255);
+
+			// 5. Actual corner of the mask (should be fully opaque)
+			expect(getPixelAlpha(5, 5)).toBe(255);
 		});
 	});
 

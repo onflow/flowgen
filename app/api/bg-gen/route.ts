@@ -1,10 +1,15 @@
 import {
 	generateBackgroundPrompt,
-	// generateStyledPrompt, // This seems unused, kept for now
+	generateStitchingPrompt,
 } from "@/lib/prompt-style";
+import {
+	extractRegion,
+	createStitchingMask,
+	compositeResult,
+	GRID_SIZE,
+} from "@/lib/image-stitching";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import sharp from "sharp";
 
 // Server-side API key fetch from env
 const openai = new OpenAI({
@@ -45,100 +50,147 @@ export async function POST(request: Request) {
 			);
 		}
 
-		const currentUrl = new URL(request.url);
-		const baseUrl = currentUrl.origin; // e.g., http://localhost:3000 or https://yourdomain.com
+		// Validate coordinates are within grid bounds
+		if (pX < 0 || pX >= GRID_SIZE || pY < 0 || pY >= GRID_SIZE) {
+			return NextResponse.json(
+				{ error: `Coordinates must be between 0 and ${GRID_SIZE - 1}` },
+				{ status: 400 }
+			);
+		}
 
+		// Fetch images
 		const backgroundImageUrl = `https://${backgroundImageCID}.ipfs.w3s.link/`;
-		const pixelImageUrl = `https://${pixelImageCID}.ipfs.w3s.link/`; // Fetched but not directly used in OpenAI call yet
-		const maskImageUrl = `${baseUrl}/api/mask/${pX}/${pY}`;
+		const pixelImageUrl = `https://${pixelImageCID}.ipfs.w3s.link/`;
 
-		console.log("maskImageUrl", maskImageUrl);
-		console.log("pixelImageUrl", pixelImageUrl);
-		console.log("backgroundImageUrl", backgroundImageUrl);
-		// Customize prompt based on style
-		const enhancedPrompt = generateBackgroundPrompt(userPrompt, pX, pY);
+		console.log("backgroundImageUrl:", backgroundImageUrl);
+		console.log("pixelImageUrl:", pixelImageUrl);
+		console.log("Processing pixel coordinates:", { pX, pY });
 
-		// Fetch image and mask data
-		const bgImageResponse = await fetch(backgroundImageUrl);
-		const pixelImageResponse = await fetch(pixelImageUrl); // Fetched, data stored in pixelImageFile
-		const maskResponse = await fetch(maskImageUrl);
-		console.log("maskResponse", maskResponse);
+		const [bgImageResponse, pixelImageResponse] = await Promise.all([
+			fetch(backgroundImageUrl),
+			fetch(pixelImageUrl),
+		]);
 
 		if (!bgImageResponse.ok) {
 			throw new Error(
 				`Failed to fetch background image from ${backgroundImageUrl}: ${bgImageResponse.status} ${bgImageResponse.statusText}`
 			);
 		}
+
 		if (!pixelImageResponse.ok) {
-			// If pixelImageCID is critical and its fetch fails, you might want to throw an error too.
-			// For now, just logging as its data isn't directly passed to openai.images.edit's 'image' param.
 			console.warn(
 				`Failed to fetch pixel image from ${pixelImageUrl}: ${pixelImageResponse.status} ${pixelImageResponse.statusText}`
 			);
 		}
-		if (!maskResponse.ok) {
-			throw new Error(
-				`Failed to fetch mask from ${maskImageUrl}: ${maskResponse.status} ${maskResponse.statusText}`
-			);
-		}
 
-		const imageFile = await bgImageResponse.blob();
-		const maskFile = await maskResponse.blob();
-		const pixelImageBlob = await pixelImageResponse.blob();
-
-		// Duplicate background image and apply mask's alpha channel
-		const [bgBuf, maskBuf] = await Promise.all([
-			imageFile.arrayBuffer(),
-			maskFile.arrayBuffer(),
+		// Get image buffers
+		const [backgroundBlob, pixelImageBlob] = await Promise.all([
+			bgImageResponse.blob(),
+			pixelImageResponse.blob(),
 		]);
 
-		// Extract alpha channel from mask
-		const alphaChannel = await sharp(Buffer.from(maskBuf))
-			.ensureAlpha()
-			.extractChannel("alpha")
-			.toBuffer();
+		const backgroundBuffer = Buffer.from(await backgroundBlob.arrayBuffer());
+		const pixelImageBuffer = Buffer.from(await pixelImageBlob.arrayBuffer());
 
-		// Create a new image with background + mask's alpha channel
-		const maskWithAlphaBuf = await sharp(Buffer.from(bgBuf))
-			.joinChannel(alphaChannel)
-			.png()
-			.toBuffer();
+		// Extract the 4x4 region around the target pixel
+		console.log("Extracting region for coordinates:", { pX, pY });
+		const { extractedRegion, bounds } = await extractRegion(
+			backgroundBuffer,
+			pX,
+			pY
+		);
+		console.log("Extraction bounds:", bounds);
+
+		// Create the stitching mask
+		const stitchingMask = await createStitchingMask();
+
+		// Generate enhanced prompt for stitching
+		const basePrompt = generateBackgroundPrompt(userPrompt, pX, pY);
+		const enhancedPrompt = generateStitchingPrompt(basePrompt);
+
+		console.log("Using stitching prompt:", enhancedPrompt);
 
 		// Build File objects for OpenAI
-		const backgroundFile = new File([imageFile], "background.png", {
-			type: "image/png",
-		});
-		const maskFileWithAlpha = new File([maskWithAlphaBuf], "mask.png", {
+		const extractedRegionFile = new File([extractedRegion], "region.png", {
 			type: "image/png",
 		});
 
-		const pixelImageFile = new File([pixelImageBlob], "pixel.png", {
+		const pixelImageFile = new File([pixelImageBuffer], "pixel.png", {
 			type: "image/png",
 		});
 
+		const stitchingMaskFile = new File([stitchingMask], "mask.png", {
+			type: "image/png",
+		});
+
+		console.log(
+			"Sending to OpenAI with extracted region size:",
+			extractedRegion.length
+		);
+
+		// Call OpenAI with the extracted region
 		const response = await openai.images.edit({
 			model: "gpt-image-1",
-			image: [backgroundFile, pixelImageFile],
-			mask: maskFileWithAlpha,
+			image: [extractedRegionFile, pixelImageFile],
+			mask: stitchingMaskFile,
 			prompt: enhancedPrompt,
 			n: 1,
-			size: "1024x1024",
+			size: "1024x1024", // OpenAI will upscale our 256x256 region
 		});
 
-		console.log("OpenAI API response:", response);
+		console.log("OpenAI API response received");
 
-		if (response.data && response.data[0].url) {
-			return NextResponse.json({ imageUrl: response.data[0].url });
-		} else if (response.data && response.data[0].b64_json) {
-			return NextResponse.json({
-				imageUrl: `data:image/png;base64,${response.data[0].b64_json}`,
-			});
-		} else {
+		if (!response.data || !response.data[0]) {
 			return NextResponse.json(
-				{ error: "No image URL returned from OpenAI" },
+				{ error: "No image data returned from OpenAI" },
 				{ status: 500 }
 			);
 		}
+
+		let generatedRegionBuffer: Buffer;
+
+		if (response.data[0].url) {
+			// Fetch the generated image from URL
+			const generatedResponse = await fetch(response.data[0].url);
+			if (!generatedResponse.ok) {
+				throw new Error("Failed to fetch generated image from OpenAI URL");
+			}
+			const generatedBlob = await generatedResponse.blob();
+			generatedRegionBuffer = Buffer.from(await generatedBlob.arrayBuffer());
+		} else if (response.data[0].b64_json) {
+			// Convert base64 to buffer
+			generatedRegionBuffer = Buffer.from(response.data[0].b64_json, "base64");
+		} else {
+			return NextResponse.json(
+				{ error: "No image URL or base64 data returned from OpenAI" },
+				{ status: 500 }
+			);
+		}
+
+		console.log("Compositing result back onto original background");
+
+		// Composite the generated result back onto the original background
+		const finalBackground = await compositeResult(
+			backgroundBuffer,
+			generatedRegionBuffer,
+			pX,
+			pY,
+			stitchingMask
+		);
+
+		console.log("Stitching complete, returning final result");
+
+		// Return the final stitched background as base64
+		return NextResponse.json({
+			imageUrl: `data:image/png;base64,${finalBackground.toString("base64")}`,
+			debug: {
+				extractionBounds: bounds,
+				originalSize: backgroundBuffer.length,
+				extractedSize: extractedRegion.length,
+				generatedSize: generatedRegionBuffer.length,
+				finalSize: finalBackground.length,
+			},
+		});
 	} catch (error: any) {
 		console.error("Error in POST /api/bg-gen:", error);
 		const errorMessage =

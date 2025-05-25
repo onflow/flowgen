@@ -1,3 +1,4 @@
+import { createStitchingMask } from "@/lib/image-stitching";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 
@@ -9,6 +10,15 @@ export async function GET(
 	request: Request,
 	{ params }: { params: Promise<{ coordinates: [x: string, y: string] }> }
 ) {
+	const buffer = await createStitchingMask();
+
+	return new Response(buffer, {
+		headers: {
+			"Content-Type": "image/png",
+			"Cache-Control": "s-maxage=31536000, stale-while-revalidate",
+			"Content-Length": buffer.length.toString(),
+		},
+	});
 	const { coordinates } = await params;
 	if (!Array.isArray(coordinates) || coordinates.length !== 2) {
 		return new Response("Missing x or y coordinates", { status: 400 });

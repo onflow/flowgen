@@ -237,8 +237,8 @@ export default function PurchasePanel({
 				style: style,
 				imageURL: imageURL,
 				imageMediaType: "image/jpeg",
-				flowPaymentAmount: pixelPrice === null ? "0" : pixelPrice.toFixed(8),
-				backendPaymentAmount: pixelPrice === null ? 0 : pixelPrice,
+				flowPaymentAmount: pixelPrice === null ? "0" : pixelPrice,
+				backendPaymentAmount: pixelPrice === null ? "0" : pixelPrice,
 				userId: user?.addr,
 			};
 
@@ -450,14 +450,12 @@ export default function PurchasePanel({
 			<div className="bg-blue-50 dark:bg-gray-800 p-4 rounded-lg mb-6">
 				<div className="flex justify-between mb-2 text-gray-800 dark:text-gray-300">
 					<span>Price per cell</span>
-					<span className="font-medium">
-						{pixelPrice ? pixelPrice.toFixed(2) : "0"} FLOW
-					</span>
+					<span className="font-medium">{pixelPrice ?? "0"} FLOW</span>
 				</div>
 
 				<div className="flex justify-between font-bold mt-2 text-gray-900 dark:text-gray-100">
 					<span>Total</span>
-					<span>{pixelPrice ? pixelPrice.toFixed(2) : "0"} FLOW</span>
+					<span>{pixelPrice ?? "0"} FLOW</span>
 				</div>
 			</div>
 

@@ -63,7 +63,7 @@ interface AcquirePixelParams {
 	imageURL: string; // For backend & Cadence ipfsImageCID
 	imageMediaType: string; // For Cadence imageMediaType
 	flowPaymentAmount: string; // UFix64 string for Cadence paymentAmount
-	backendPaymentAmount: number; // For backend server action
+	backendPaymentAmount: string; // For backend server action
 	userId: string; // User's Flow address, for backend ownerId (signer is implicit buyer for Cadence)
 
 	// These are no longer direct Cadence script args but kept for potential future use or consistency
@@ -576,7 +576,14 @@ interface UsePixelPriceProps {
 	y: number | undefined | null;
 }
 
-export function usePixelPrice({ x, y }: UsePixelPriceProps) {
+type PixelPrice = {
+	price: string;
+	isLoading: boolean;
+	error: Error | null;
+	refetch: () => void;
+};
+
+export function usePixelPrice({ x, y }: UsePixelPriceProps): PixelPrice {
 	const {
 		data: price,
 		isLoading,
@@ -591,8 +598,10 @@ export function usePixelPrice({ x, y }: UsePixelPriceProps) {
 		query: {
 			enabled: typeof x === "number" && typeof y === "number",
 			staleTime: 0, // Cache for 30 seconds
-			select: (rawData: any): number | null => {
-				if (rawData === null || typeof rawData === "undefined") return null;
+			select: (rawData: any): string => {
+				if (rawData === null || typeof rawData === "undefined") {
+					throw new Error("No price data found for pixel.");
+				}
 				const priceString = String(rawData);
 				const parsedPrice = parseFloat(priceString);
 				if (isNaN(parsedPrice)) {
@@ -602,13 +611,14 @@ export function usePixelPrice({ x, y }: UsePixelPriceProps) {
 					);
 					throw new Error("Failed to parse pixel price data from Flow.");
 				}
-				return parsedPrice;
+				// Return the price as a string
+				return priceString;
 			},
 		},
 	});
 
 	return {
-		price: price as number | null,
+		price: price as string,
 		isLoading,
 		error: queryError,
 		refetch,

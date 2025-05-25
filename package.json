@@ -16,9 +16,9 @@
 		"flow:deploy:testnet": "flow project deploy --network testnet --update",
 		"flow:deploy:mainnet": "flow project deploy --network mainnet --update",
 		"flow:seed:background:emulator": "flow transactions send cadence/transactions/canvas/InitializeCanvasAndAdmin.cdc \"bafybeidgxttsoguwrg3m3pkbrhvtj6pe63ym2uc4hwun5rngnk7i7we65q\" --network emulator",
-		"flow:reset:background:emulator": "flow transactions send cadence/transactions/canvas/UpdateCanvasBackground.cdc \"bafybeidgxttsoguwrg3m3pkbrhvtj6pe63ym2uc4hwun5rngnk7i7we65q\" --network emulator",
+		"flow:reset:background:emulator": "flow transactions send cadence/transactions/canvas/UpdateCanvasBackground.cdc \"bafybeidgxttsoguwrg3m3pkbrhvtj6pe63ym2uc4hwun5rngnk7i7we65q\" nil nil nil --network emulator",
 		"flow:seed:background:testnet": "flow transactions send cadence/transactions/canvas/InitializeCanvasAndAdmin.cdc bafybeidgxttsoguwrg3m3pkbrhvtj6pe63ym2uc4hwun5rngnk7i7we65q --network testnet --signer admin-testnet",
-		"flow:reset:background:testnet": "flow transactions send cadence/transactions/canvas/UpdateCanvasBackground.cdc bafybeicyjtefat5uqs7hyexaq6sh62iel4fovuqwfce3m567zeajape3ui --network testnet --signer admin-testnet",
+		"flow:reset:background:testnet": "flow transactions send cadence/transactions/canvas/UpdateCanvasBackground.cdc bafybeidgxttsoguwrg3m3pkbrhvtj6pe63ym2uc4hwun5rngnk7i7we65q nil nil nil --network testnet --signer admin-testnet",
 		"flow:seed:background:mainnet": "flow transactions send cadence/transactions/InitializeCanvasAndAdmin.cdc bafybeidgxttsoguwrg3m3pkbrhvtj6pe63ym2uc4hwun5rngnk7i7we65q --network mainnet --signer admin-mainnet"
 	},
 	"dependencies": {

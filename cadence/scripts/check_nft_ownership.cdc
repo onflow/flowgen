@@ -1,6 +1,6 @@
     // check_nft_ownership.cdc
-    import NonFungibleToken from "NonFungibleToken"
-    import CanvasBackground from "CanvasBackground"
+    import "NonFungibleToken"
+    import "CanvasBackground"
 
     access(all) fun main(accountAddress: Address, expectedNftID: UInt64): Bool {
         let account = getAccount(accountAddress)

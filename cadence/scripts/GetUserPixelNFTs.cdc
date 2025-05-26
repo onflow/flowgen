@@ -1,6 +1,6 @@
 // File: /Users/tom/code/flowgen/cadence/scripts/GetUserPixelNFTs.cdc
-import NonFungibleToken from "NonFungibleToken"
-import FlowGenPixel from "FlowGenPixel"
+import "NonFungibleToken"
+import "FlowGenPixel"
 
 // This script returns an array of FlowGenPixel NFT IDs owned by an account.
 access(all) fun main(accountAddress: Address): [UInt64] {

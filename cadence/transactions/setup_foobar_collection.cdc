@@ -1,6 +1,6 @@
 import "FooBar"
 // import "NonFungibleToken" // Standard, aliased by flow.json
-import FlowGenPixel from "FlowGenPixel" // Changed to named import
+import "FlowGenPixel" // Changed to named import
 // NonFungibleToken import might not be needed if FlowGenPixel contract already defines necessary paths/types from it.
 // However, explicit import of standard contracts is often good practice if using their types directly.
 // import NonFungibleToken from "NonFungibleToken" // Assuming flow.json handles this alias

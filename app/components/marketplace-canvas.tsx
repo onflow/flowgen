@@ -7,6 +7,7 @@ import { PixelData } from "@/lib/pixel-types";
 import { useCanvasOverview, useAllPixelData } from "../hooks/pixel-hooks";
 import { useEnrichedGridData } from "../hooks/use-marketplace-pixel-data";
 import { useCurrentBackgroundInfo } from "../hooks/pixel-hooks";
+import { TEST_CONFIG } from "@/lib/test-config";
 
 const GRID_SIZE = 16; // 16x16 grid
 
@@ -139,6 +140,13 @@ export default function MarketplaceCanvas() {
 					<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
 						Buy and sell pixels with automatic 25% markup
 					</p>
+					{!TEST_CONFIG.ENABLE_AI_GENERATION && (
+						<div className="mt-2 p-2 bg-orange-100 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded">
+							<p className="text-xs text-orange-800 dark:text-orange-200 font-medium">
+								🧪 TEST MODE: Using random colored images instead of AI generation
+							</p>
+						</div>
+					)}
 				</div>
 
 				<MarketplacePurchasePanel

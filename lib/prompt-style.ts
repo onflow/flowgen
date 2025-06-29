@@ -1,6 +1,7 @@
 // flowgenPromptStyles.ts
 
 export const CUTE_ART_STYLES = [
+	"crochetAmigurumi",
 	"pixelArt",
 	"chibi",
 	"kawaiiPastel",
@@ -10,7 +11,6 @@ export const CUTE_ART_STYLES = [
 	"storybook",
 	"flatDesign",
 	"y2kBubble",
-	"crochetAmigurumi",
 ] as const;
 
 export type CuteArtStyle = (typeof CUTE_ART_STYLES)[number];

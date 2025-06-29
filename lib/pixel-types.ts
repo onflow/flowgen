@@ -9,10 +9,12 @@ export interface PixelData {
 	imageMediaType?: string | null;
 	prompt?: string | null;
 	style?: string | null;
-	// For marketplace features later
+	// For marketplace features
 	price?: number | string | null; // price is numeric in DB, can be string for display, or null
 	isListed?: boolean | null;
 	listingId?: string | null;
+	sellerAddress?: string | null; // Address of the seller if listed
+	originalPurchasePrice?: number | string | null; // Original price paid
 	error?: string; // Optional error field
 }
 

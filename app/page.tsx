@@ -1,7 +1,7 @@
 "use client";
 
-import AIPixelCanvas from "./components/ai-pixel-canvas";
+import MarketplaceCanvas from "./components/marketplace-canvas";
 
 export default function Home() {
-	return <AIPixelCanvas />;
+	return <MarketplaceCanvas />;
 }

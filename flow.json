@@ -28,6 +28,13 @@
 				"emulator": "f8d6e0586b0a20c7",
 				"testnet": "5387bfae1bb240b0"
 			}
+		},
+		"FlowGenPixelMarketplace": {
+			"source": "cadence/contracts/FlowGenPixelMarketplace.cdc",
+			"aliases": {
+				"emulator": "f8d6e0586b0a20c7",
+				"testnet": "5387bfae1bb240b0"
+			}
 		}
 	},
 	"dependencies": {
@@ -165,7 +172,8 @@
 							"type": "UInt16"
 						}
 					]
-				}
+				},
+				"FlowGenPixelMarketplace"
 			]
 		},
 		"testnet": {
@@ -201,7 +209,8 @@
 							"type": "UInt16"
 						}
 					]
-				}
+				},
+				"FlowGenPixelMarketplace"
 			]
 		}
 	}

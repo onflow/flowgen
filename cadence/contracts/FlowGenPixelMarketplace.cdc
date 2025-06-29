@@ -95,7 +95,7 @@ access(all) contract FlowGenPixelMarketplace {
 
         // Remove a listing
         access(all) fun delistPixel(pixelId: UInt64) {
-            self.listings.remove(key: pixelId)
+            let removed = self.listings.remove(key: pixelId)
                 ?? panic("Pixel not listed")
             
             emit PixelDelisted(pixelId: pixelId, seller: self.owner!.address)
@@ -143,7 +143,7 @@ access(all) contract FlowGenPixelMarketplace {
             self.distributePayment(payment: <-payment, aiImageNftID: aiImageNftID, listingPrice: listing.price)
             
             // Remove listing
-            self.listings.remove(key: pixelId)
+            let _ = self.listings.remove(key: pixelId)
             
             emit PixelPurchased(
                 pixelId: pixelId,
